@@ -16,6 +16,17 @@ const PRESETS = [
 ] as const;
 
 export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  // The form must mount fresh on every open: its useState initializers
+  // snapshot the store, and a snapshot taken while closed goes stale — the
+  // app's very first render even predates persist rehydration (React serves
+  // useSyncExternalStore's getInitialState during hydration), so a
+  // component-lifetime snapshot is the built-in defaults, and saving it
+  // would silently revert the user's real AI/sync settings.
+  if (!open) return null;
+  return <SettingsForm onClose={onClose} />;
+}
+
+function SettingsForm({ onClose }: { onClose: () => void }) {
   const {
     localAiEnabled,
     localAiUrl,
@@ -38,8 +49,6 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   const [wantSync, setWantSync] = useState(syncEnabled);
   const [syncTestResult, setSyncTestResult] = useState<null | { ok: boolean; msg: string }>(null);
   const keyFileRef = useRef<HTMLInputElement | null>(null);
-
-  if (!open) return null;
 
   const isHosted =
     typeof window !== "undefined" &&

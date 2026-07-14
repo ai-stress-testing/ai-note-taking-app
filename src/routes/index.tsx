@@ -657,15 +657,8 @@ function Editor() {
     },
     [
       activeFileId,
-      active,
-      activeFolder,
-      focusedPane,
-      localAiEnabled,
-      localAiUrl,
-      localAiModel,
       insertAtRange,
       setContent,
-      setAiStatus,
       setPanes,
       incSessionCount,
       logSession,
@@ -676,6 +669,7 @@ function Editor() {
       verifyCalc,
       helpNudge,
       addCard,
+      addCanvas,
     ],
   );
 
