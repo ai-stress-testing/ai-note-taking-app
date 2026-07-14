@@ -1,16 +1,23 @@
 import { runAi, type AiResult } from "./ai-client";
-import { useStore } from "./store";
+import { isFilePersonal, useStore } from "./store";
 
 /**
  * Serializes every AI call behind a single promise chain so at most one
- * request is ever in flight against the local server — useful now that
- * several features (help, end-of-session, and the grading/verification
- * features still to come) can all trigger a call. Each call is recorded
- * in the store's aiQueue as it's queued, sent, and resolved, so the same
- * list serves as both the pending queue and the audit trail shown in the
- * AI queue modal.
+ * request is ever in flight against the local server, and enforces the AI
+ * privacy boundary: this is the ONLY module app code may call for AI, so a
+ * personal file is checked exactly once, here, for every current and
+ * future feature. Each call is recorded in the store's aiQueue as it's
+ * queued, sent, and resolved — the same list is the pending queue and the
+ * audit trail shown in the AI queue modal.
  */
 let tail: Promise<void> = Promise.resolve();
+
+export class PersonalContentError extends Error {
+  constructor() {
+    super("not sent — this file is personal");
+    this.name = "PersonalContentError";
+  }
+}
 
 export function queueAi(opts: {
   command: string;
@@ -19,8 +26,15 @@ export function queueAi(opts: {
   localAiEnabled: boolean;
   localAiUrl: string;
   localAiModel: string;
+  /** The file whose content the prompt was built from; gates the privacy check. */
+  fileId?: string | null;
 }): Promise<AiResult> {
-  const { enqueueAiEntry, updateAiEntry } = useStore.getState();
+  const state = useStore.getState();
+  if (opts.fileId && isFilePersonal(opts.fileId, state.files, state.folders)) {
+    return Promise.reject(new PersonalContentError());
+  }
+
+  const { enqueueAiEntry, updateAiEntry } = state;
   const id = enqueueAiEntry(opts.command, opts.system, opts.prompt);
 
   const run = async (): Promise<AiResult> => {

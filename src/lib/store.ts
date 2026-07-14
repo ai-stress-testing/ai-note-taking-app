@@ -9,6 +9,8 @@ export type FileDoc = {
   content: string;
   createdAt: number;
   updatedAt: number;
+  /** AI privacy: true/false overrides the folder; undefined inherits it. */
+  personal?: boolean;
 };
 
 export type Folder = {
@@ -18,6 +20,8 @@ export type Folder = {
   accent: string;
   createdAt: number;
   updatedAt: number;
+  /** AI privacy: content in this folder is never sent to the local AI. */
+  personal?: boolean;
 };
 
 export type AiSource = "local";
@@ -59,6 +63,10 @@ export type Card = {
   updatedAt: number;
   fsrs: FsrsState;
   flagged: boolean;
+  /** AI grading (question cards): did the model agree the marked answers are right? */
+  gradedCorrect?: boolean;
+  gradedSummary?: string;
+  gradedTags?: string[];
 };
 
 /** Full per-review data points — enough for future FSRS parameter optimization. */
@@ -120,6 +128,8 @@ type State = {
   localAiEnabled: boolean;
   localAiUrl: string;
   localAiModel: string;
+  /** Optional smaller/faster model for math/calc/grading verification ("" = use primary). */
+  verifyAiModel: string;
 
   sessionEvents: SessionEvent[];
   sessionCounts: SessionCounts;
@@ -144,6 +154,8 @@ type State = {
   renameFolder: (id: string, name: string) => void;
   /** Deletes the folder and everything in it (files, canvases), tombstoned for sync. */
   deleteFolder: (id: string) => void;
+  toggleFilePersonal: (id: string) => void;
+  toggleFolderPersonal: (id: string) => void;
   setFileSearch: (q: string) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
@@ -157,7 +169,7 @@ type State = {
   setContent: (fileId: string, content: string) => void;
   setAiStatus: (s: AiStatus, source?: AiSource | null) => void;
   setLocalAi: (
-    patch: Partial<Pick<State, "localAiEnabled" | "localAiUrl" | "localAiModel">>,
+    patch: Partial<Pick<State, "localAiEnabled" | "localAiUrl" | "localAiModel" | "verifyAiModel">>,
   ) => void;
 
   logSession: (type: SessionEventType) => SessionEvent;
@@ -173,6 +185,10 @@ type State = {
       Partial<Pick<Card, "question" | "partLabel" | "choices" | "front" | "back">>,
   ) => string;
   rateCard: (id: string, rating: FsrsRating) => void;
+  setCardGrading: (
+    id: string,
+    grading: { gradedCorrect: boolean; gradedSummary: string; gradedTags: string[] },
+  ) => void;
   deleteCard: (id: string) => void;
   toggleCardFlag: (id: string) => void;
 
@@ -324,6 +340,7 @@ export const useStore = create<State>()(
         localAiEnabled: true,
         localAiUrl: "http://localhost:11434/v1",
         localAiModel: "llama3.2",
+        verifyAiModel: "",
         sessionEvents: [],
         sessionCounts: { questions: 0, vocab: 0 },
         aiQueue: [],
@@ -364,6 +381,17 @@ export const useStore = create<State>()(
               reviewLogs: [...s.reviewLogs, entry],
             };
           }),
+        setCardGrading: (id, grading) =>
+          set((s) =>
+            s.cards[id]
+              ? {
+                  cards: {
+                    ...s.cards,
+                    [id]: { ...s.cards[id], ...grading, updatedAt: Date.now() },
+                  },
+                }
+              : s,
+          ),
         deleteCard: (id) =>
           set((s) => {
             if (!s.cards[id]) return s;
@@ -505,6 +533,33 @@ export const useStore = create<State>()(
           }));
           return id;
         },
+        toggleFilePersonal: (id) =>
+          set((s) =>
+            s.files[id]
+              ? {
+                  files: {
+                    ...s.files,
+                    [id]: {
+                      ...s.files[id],
+                      // Cycle: inherit -> personal -> normal -> inherit.
+                      personal:
+                        s.files[id].personal === undefined
+                          ? true
+                          : s.files[id].personal
+                            ? false
+                            : undefined,
+                      updatedAt: Date.now(),
+                    },
+                  },
+                }
+              : s,
+          ),
+        toggleFolderPersonal: (id) =>
+          set((s) => ({
+            folders: s.folders.map((f) =>
+              f.id === id ? { ...f, personal: !f.personal, updatedAt: Date.now() } : f,
+            ),
+          })),
         renameFolder: (id, name) =>
           set((s) => ({
             folders: s.folders.map((f) =>
@@ -632,6 +687,7 @@ export const useStore = create<State>()(
         s.tombstones = s.tombstones ?? [];
         s.syncEnabled = s.syncEnabled ?? false;
         s.backendToken = s.backendToken ?? "";
+        s.verifyAiModel = s.verifyAiModel ?? "";
         if (Array.isArray(s.panes) && typeof s.focusedPane === "number") {
           s.focusedPane = Math.max(0, Math.min(s.focusedPane, s.panes.length - 1));
         }
@@ -647,6 +703,7 @@ export const useStore = create<State>()(
         localAiEnabled: s.localAiEnabled,
         localAiUrl: s.localAiUrl,
         localAiModel: s.localAiModel,
+        verifyAiModel: s.verifyAiModel,
         sessionEvents: s.sessionEvents,
         sessionCounts: s.sessionCounts,
         aiQueue: s.aiQueue,
@@ -661,6 +718,22 @@ export const useStore = create<State>()(
     },
   ),
 );
+
+/**
+ * The AI privacy boundary's single source of truth: a file is personal if
+ * it says so itself, or (when it doesn't say) if its folder is marked.
+ */
+export function isFilePersonal(
+  fileId: string | null | undefined,
+  files: Record<string, FileDoc>,
+  folders: Folder[],
+): boolean {
+  if (!fileId) return false;
+  const file = files[fileId];
+  if (!file) return false;
+  if (file.personal !== undefined) return file.personal;
+  return folders.find((f) => f.id === file.folderId)?.personal ?? false;
+}
 
 // ── Session math helpers ────────────────────────────────────────
 export function computeSessionStats(events: SessionEvent[], endAt: number) {

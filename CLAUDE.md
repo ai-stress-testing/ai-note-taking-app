@@ -45,6 +45,11 @@ Zustand + Tailwind v4. Package manager: Bun.
   queue and the audit trail shown in the AI status button's modal.
 - `src/lib/prompt.ts` — prompt-injection/control-char sanitization before any
   note content is sent to the model.
+- `src/lib/ai-queue.ts` is also the AI privacy chokepoint: pass `fileId` and
+  personal files/folders are rejected before any request is built. Never
+  call `runAi` directly from app code.
+- `src/lib/calc-eval.ts` — safe arithmetic evaluator behind /calc: the model
+  extracts the expression, this evaluates it. No eval, allowlisted grammar.
 - `src/lib/fsrs.ts` — FSRS-4.5 scheduler, pure functions. `src/lib/card-parse.ts`
   turns closed /card, /vocab, /question blocks into cards;
   `src/components/FlashcardTray.tsx` is the inline review UI behind `/fsrs`.

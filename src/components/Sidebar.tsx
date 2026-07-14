@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useStore, fmtClock } from "@/lib/store";
+import { useStore, fmtClock, isFilePersonal } from "@/lib/store";
 import { toast } from "sonner";
 
 export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
@@ -14,6 +14,8 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
     createFolder,
     renameFolder,
     deleteFolder,
+    toggleFilePersonal,
+    toggleFolderPersonal,
     openFileInPane,
     focusedPane,
     panes,
@@ -85,6 +87,20 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
                 <span className="ed-folder-name">{f.name}</span>
                 <span className="ed-folder-count">{count}</span>
                 <button
+                  className={`ed-personal-toggle ${f.personal ? "on" : ""}`}
+                  title={
+                    f.personal
+                      ? "Personal folder — content here is never sent to AI. Click to allow."
+                      : "Mark folder personal (never sent to AI)"
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFolderPersonal(f.id);
+                  }}
+                >
+                  ⊘
+                </button>
+                <button
                   className="ed-side-file-x"
                   title="Delete folder and its files"
                   onClick={(e) => {
@@ -141,6 +157,22 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
                 <span className="ed-side-file-meta" suppressHydrationWarning>
                   {fmtClock(f.updatedAt)}
                 </span>
+                <button
+                  className={`ed-personal-toggle ${isFilePersonal(f.id, files, folders) ? "on" : ""}`}
+                  title={
+                    f.personal === undefined
+                      ? "AI privacy: inheriting from folder — click to mark personal"
+                      : f.personal
+                        ? "Personal file — never sent to AI. Click to mark normal."
+                        : "Normal file (overrides folder) — click to inherit from folder"
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFilePersonal(f.id);
+                  }}
+                >
+                  ⊘
+                </button>
                 <button
                   className="ed-side-file-x"
                   title="Delete file"

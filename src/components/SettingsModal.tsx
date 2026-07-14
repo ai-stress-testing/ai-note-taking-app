@@ -20,6 +20,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     localAiEnabled,
     localAiUrl,
     localAiModel,
+    verifyAiModel,
     setLocalAi,
     syncEnabled,
     backendToken,
@@ -29,6 +30,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   } = useStore();
   const [url, setUrl] = useState(localAiUrl);
   const [model, setModel] = useState(localAiModel);
+  const [verifyModel, setVerifyModel] = useState(verifyAiModel);
   const [enabled, setEnabled] = useState(localAiEnabled);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<null | { ok: boolean; msg: string }>(null);
@@ -71,7 +73,12 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   };
 
   const save = () => {
-    setLocalAi({ localAiEnabled: enabled, localAiUrl: url.trim(), localAiModel: model.trim() });
+    setLocalAi({
+      localAiEnabled: enabled,
+      localAiUrl: url.trim(),
+      localAiModel: model.trim(),
+      verifyAiModel: verifyModel.trim(),
+    });
     setSyncConfig({ syncEnabled: wantSync, backendToken: token.trim() });
     setSyncRuntime({
       syncStatus: wantSync ? (keyIsLoaded() ? "idle" : "no-key") : "off",
@@ -160,6 +167,21 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
             <span className="ed-field-hint">
               Whatever model name your server reports — for Ollama, one you've pulled with{" "}
               <code>ollama pull {model || "llama3.2"}</code>.
+            </span>
+          </label>
+
+          <label className="ed-field">
+            <span className="ed-field-label">Verification model (optional)</span>
+            <input
+              className="ed-field-input"
+              value={verifyModel}
+              onChange={(e) => setVerifyModel(e.target.value)}
+              placeholder="empty = use the main model"
+              spellCheck={false}
+            />
+            <span className="ed-field-hint">
+              A smaller/faster model for math correction, calc extraction, and question grading —
+              e.g. <code>llama3.2:1b</code>. Same server as above.
             </span>
           </label>
 

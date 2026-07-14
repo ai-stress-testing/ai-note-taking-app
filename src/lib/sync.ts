@@ -69,6 +69,7 @@ async function buildPush(): Promise<PushPayload> {
         id: f.id,
         name: await encryptText(k, f.name),
         accent: f.accent,
+        personal: f.personal ?? false,
         createdAt: f.createdAt,
         updatedAt: f.updatedAt,
       })),
@@ -79,6 +80,7 @@ async function buildPush(): Promise<PushPayload> {
         folderId: f.folderId,
         name: await encryptText(k, f.name),
         content: await encryptText(k, f.content),
+        personal: f.personal ?? null,
         createdAt: f.createdAt,
         updatedAt: f.updatedAt,
       })),
@@ -108,6 +110,9 @@ async function buildPush(): Promise<PushPayload> {
             choices: c.choices,
             front: c.front,
             back: c.back,
+            gradedCorrect: c.gradedCorrect,
+            gradedSummary: c.gradedSummary,
+            gradedTags: c.gradedTags,
           }),
         ),
         flagged: c.flagged,
@@ -125,7 +130,7 @@ async function buildPush(): Promise<PushPayload> {
 async function decryptCard(k: CryptoKey, c: SyncCard): Promise<Card> {
   const content = JSON.parse(await decryptText(k, c.content)) as Pick<
     Card,
-    "question" | "choices" | "front" | "back"
+    "question" | "choices" | "front" | "back" | "gradedCorrect" | "gradedSummary" | "gradedTags"
   >;
   return {
     id: c.id,
@@ -148,6 +153,7 @@ async function applyPull(remote: PullResponse): Promise<void> {
       id: f.id,
       name: await decryptText(k, f.name),
       accent: f.accent,
+      personal: f.personal ?? false,
       createdAt: f.createdAt,
       updatedAt: f.updatedAt,
     })),
@@ -158,6 +164,7 @@ async function applyPull(remote: PullResponse): Promise<void> {
       folderId: f.folderId,
       name: await decryptText(k, f.name),
       content: await decryptText(k, f.content),
+      personal: f.personal ?? undefined,
       createdAt: f.createdAt,
       updatedAt: f.updatedAt,
     })),

@@ -9,8 +9,40 @@ import type { Card, CardChoice } from "./store";
 export type ParsedCard = Pick<Card, "kind"> &
   Partial<Pick<Card, "question" | "partLabel" | "choices" | "front" | "back">>;
 
-const MARKERS = ["── Card ", "── Vocab ", "── Question ", "── Note "] as const;
+const MARKERS = [
+  "── Card ",
+  "── Vocab ",
+  "── Question ",
+  "── Note ",
+  "── Math ",
+  "── Calc ",
+  "── Help ",
+] as const;
 const CLOSE_RULE = "──────────────────────────────────────────────────";
+
+export type BlockMarker = (typeof MARKERS)[number];
+
+/** The nearest unclosed block marker above the caret, with its body text. */
+export function parseEnclosingBlock(
+  buffer: string,
+  caret: number,
+): { marker: BlockMarker; body: string } | null {
+  const before = buffer.slice(0, caret);
+  let markerIdx = -1;
+  let marker: BlockMarker | null = null;
+  for (const m of MARKERS) {
+    const idx = before.lastIndexOf(m);
+    if (idx > markerIdx) {
+      markerIdx = idx;
+      marker = m;
+    }
+  }
+  if (marker === null) return null;
+  if (before.slice(markerIdx + marker.length).includes(CLOSE_RULE)) return null;
+  const firstLineEnd = buffer.indexOf("\n", markerIdx);
+  if (firstLineEnd === -1 || firstLineEnd >= caret) return null;
+  return { marker, body: buffer.slice(firstLineEnd + 1, caret).trim() };
+}
 
 function fieldValue(block: string, field: string): string {
   const m = new RegExp(`^\\s*${field}:\\s*(.*)$`, "m").exec(block);
@@ -19,22 +51,8 @@ function fieldValue(block: string, field: string): string {
 
 /** Body of the unclosed ── Note ── block enclosing the caret, if any. */
 export function parseNoteBlock(buffer: string, caret: number): string | null {
-  const before = buffer.slice(0, caret);
-  let markerIdx = -1;
-  let marker: (typeof MARKERS)[number] | null = null;
-  for (const m of MARKERS) {
-    const idx = before.lastIndexOf(m);
-    if (idx > markerIdx) {
-      markerIdx = idx;
-      marker = m;
-    }
-  }
-  if (marker !== "── Note ") return null;
-  if (before.slice(markerIdx + marker.length).includes(CLOSE_RULE)) return null;
-  const firstLineEnd = buffer.indexOf("\n", markerIdx);
-  if (firstLineEnd === -1 || firstLineEnd >= caret) return null;
-  const body = buffer.slice(firstLineEnd + 1, caret).trim();
-  return body || null;
+  const block = parseEnclosingBlock(buffer, caret);
+  return block?.marker === "── Note " && block.body ? block.body : null;
 }
 
 export function parseBlockToCards(buffer: string, caret: number): ParsedCard[] {
@@ -51,8 +69,14 @@ export function parseBlockToCards(buffer: string, caret: number): ParsedCard[] {
   if (marker === null) return [];
   // Already-closed blocks don't produce cards twice.
   if (before.slice(markerIdx + marker.length).includes(CLOSE_RULE)) return [];
-  // Notes aren't cards — closing one is handled by the /note AI summary path.
-  if (marker === "── Note ") return [];
+  // Notes/math/calc/help aren't cards — their close paths are AI/tool driven.
+  if (
+    marker === "── Note " ||
+    marker === "── Math " ||
+    marker === "── Calc " ||
+    marker === "── Help "
+  )
+    return [];
   const block = buffer.slice(markerIdx, caret);
 
   if (marker === "── Card ") {

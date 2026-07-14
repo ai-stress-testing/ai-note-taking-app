@@ -67,6 +67,7 @@ create table if not exists folders (
   id text primary key,
   name_ct text not null, name_nonce text not null,
   accent text not null,
+  personal integer not null default 0,
   created_at integer not null, updated_at integer not null
 );
 create table if not exists files (
@@ -74,6 +75,7 @@ create table if not exists files (
   folder_id text not null,
   name_ct text not null, name_nonce text not null,
   content_ct text not null, content_nonce text not null,
+  personal integer,
   created_at integer not null, updated_at integer not null
 );
 create table if not exists canvases (
@@ -135,6 +137,17 @@ export async function getDb(): Promise<SqliteDb> {
   const handle = await openDatabase(`${dir}/neurovim.sqlite`);
   handle.exec("pragma journal_mode = wal");
   handle.exec(SCHEMA);
+  // Additive column migrations for databases created before these existed.
+  for (const ddl of [
+    "alter table folders add column personal integer not null default 0",
+    "alter table files add column personal integer",
+  ]) {
+    try {
+      handle.exec(ddl);
+    } catch {
+      /* column already exists */
+    }
+  }
   db = handle;
   return db;
 }
@@ -176,14 +189,15 @@ export async function mergePush(payload: PushPayload): Promise<void> {
     if (f.updatedAt <= tombAt("folder", f.id) || f.updatedAt <= rowUpdatedAt("folders", f.id))
       continue;
     d.run(
-      `insert into folders (id, name_ct, name_nonce, accent, created_at, updated_at)
-       values (?, ?, ?, ?, ?, ?)
+      `insert into folders (id, name_ct, name_nonce, accent, personal, created_at, updated_at)
+       values (?, ?, ?, ?, ?, ?, ?)
        on conflict(id) do update set name_ct=excluded.name_ct, name_nonce=excluded.name_nonce,
-         accent=excluded.accent, updated_at=excluded.updated_at`,
+         accent=excluded.accent, personal=excluded.personal, updated_at=excluded.updated_at`,
       f.id,
       f.name.ct,
       f.name.nonce,
       f.accent,
+      f.personal ? 1 : 0,
       f.createdAt,
       f.updatedAt,
     );
@@ -192,17 +206,19 @@ export async function mergePush(payload: PushPayload): Promise<void> {
   for (const f of payload.files) {
     if (f.updatedAt <= tombAt("file", f.id) || f.updatedAt <= rowUpdatedAt("files", f.id)) continue;
     d.run(
-      `insert into files (id, folder_id, name_ct, name_nonce, content_ct, content_nonce, created_at, updated_at)
-       values (?, ?, ?, ?, ?, ?, ?, ?)
+      `insert into files (id, folder_id, name_ct, name_nonce, content_ct, content_nonce, personal, created_at, updated_at)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?)
        on conflict(id) do update set folder_id=excluded.folder_id, name_ct=excluded.name_ct,
          name_nonce=excluded.name_nonce, content_ct=excluded.content_ct,
-         content_nonce=excluded.content_nonce, updated_at=excluded.updated_at`,
+         content_nonce=excluded.content_nonce, personal=excluded.personal,
+         updated_at=excluded.updated_at`,
       f.id,
       f.folderId,
       f.name.ct,
       f.name.nonce,
       f.content.ct,
       f.content.nonce,
+      f.personal === true ? 1 : f.personal === false ? 0 : null,
       f.createdAt,
       f.updatedAt,
     );
@@ -301,6 +317,7 @@ export async function pullWorkspace(): Promise<PullResponse> {
       id: r.id as string,
       name: enc(r, "name"),
       accent: r.accent as string,
+      personal: r.personal === 1,
       createdAt: r.created_at as number,
       updatedAt: r.updated_at as number,
     })),
@@ -309,6 +326,7 @@ export async function pullWorkspace(): Promise<PullResponse> {
       folderId: r.folder_id as string,
       name: enc(r, "name"),
       content: enc(r, "content"),
+      personal: r.personal === null ? null : r.personal === 1,
       createdAt: r.created_at as number,
       updatedAt: r.updated_at as number,
     })),

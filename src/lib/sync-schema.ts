@@ -25,6 +25,7 @@ export const syncFolderSchema = z.object({
   id,
   name: encSchema,
   accent: z.string().max(32),
+  personal: z.boolean().optional(),
   createdAt: ts,
   updatedAt: ts,
 });
@@ -34,6 +35,7 @@ export const syncFileSchema = z.object({
   folderId: id,
   name: encSchema,
   content: encSchema,
+  personal: z.boolean().nullable().optional(),
   createdAt: ts,
   updatedAt: ts,
 });

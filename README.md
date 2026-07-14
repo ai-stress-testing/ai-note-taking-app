@@ -49,15 +49,22 @@ schedule reviews. The API requires the bearer token on every request.
 
 ## Study workflow
 
-| Command                            | What it does                                                                     |
-| ---------------------------------- | -------------------------------------------------------------------------------- |
-| `/question`                        | MCQ template — `Q:`, lettered parts, 4 `[ ]` choice brackets; mark answers `[x]` |
-| `/vocab`, `/card`                  | term/definition and front/back capture blocks                                    |
-| `/>`                               | closes the current block — Card/Vocab/Question blocks become review cards        |
-| `/fsrs`                            | reviews due cards inline (FSRS-4.5 scheduler; keyboard: space, 1–4)              |
-| `/help`                            | Socratic nudge from your local model, never the answer                           |
-| `/start` `/break` `/resume` `/end` | session timer + AI session summary                                               |
-| `/canvas` `/split` `/export`       | drawing canvas, panes, backup export                                             |
+| Command                            | What it does                                                                                                                    |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `/question`                        | MCQ template — `Q:`, lettered parts, 4 `[ ]` choice brackets; mark answers `[x]`; graded on close (verified + summary + 3 tags) |
+| `/vocab`, `/card`, `/note`         | term/definition, front/back, and knowledge-note capture blocks                                                                  |
+| `/math`, `/calc`                   | math corrected to LaTeX on close; calculations verified by a real evaluator, never model arithmetic                             |
+| `/>`                               | closes the current block — cards join the deck, AI follow-ups fire                                                              |
+| `/fsrs`                            | reviews due cards inline at that line (FSRS-4.5; keyboard: space, 1–4, ⚑ flag)                                                  |
+| `/help`                            | Socratic nudge block — close to send; never the answer                                                                          |
+| `/start` `/break` `/resume` `/end` | session timer + AI session summary (habit metrics stay private)                                                                 |
+| `/canvas` `/split` `/export`       | drawing canvas at that line, panes, backup export                                                                               |
+
+Mark any file or folder **personal** (⊘ in the sidebar) and nothing in it
+is ever included in an AI request — enforced at one central chokepoint,
+with visible "not sent" feedback. The **analytics** page (◔ in the header)
+shows focus history, review throughput, grading ratios, and tag frequency —
+computed locally, never sent anywhere.
 
 A starter deck of 8 cards ships in so `/fsrs` works immediately. Every
 review logs full FSRS data points (elapsed time, retrievability,

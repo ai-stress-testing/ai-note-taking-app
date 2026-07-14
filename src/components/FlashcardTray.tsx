@@ -46,7 +46,7 @@ function CardFront({ card, revealed }: { card: Card; revealed: boolean }) {
 }
 
 export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => void }) {
-  const { cards, rateCard } = useStore();
+  const { cards, rateCard, toggleCardFlag } = useStore();
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [entering, setEntering] = useState(true);
@@ -106,9 +106,22 @@ export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => 
     <div className="ed-fc-tray" role="region" aria-label="Review session">
       <div className="ed-fc-head">
         <span className="ed-fc-kind">{card.kind}</span>
+        {card.gradedCorrect !== undefined && (
+          <span className={`ed-fc-graded ${card.gradedCorrect ? "ok" : "bad"}`}>
+            {card.gradedCorrect ? "verified" : "check answers"}
+          </span>
+        )}
         <span className="ed-fc-progress">
           {index + 1} / {queue.length}
         </span>
+        <button
+          className={`ed-fc-flag ${card.flagged ? "on" : ""}`}
+          onClick={() => toggleCardFlag(card.id)}
+          title={card.flagged ? "Unflag this card" : "Flag this card to come back to"}
+          aria-pressed={card.flagged}
+        >
+          ⚑
+        </button>
         <button className="ed-modal-x" onClick={onClose} aria-label="Close review">
           ×
         </button>
