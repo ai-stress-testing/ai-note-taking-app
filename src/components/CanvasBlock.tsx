@@ -106,7 +106,11 @@ export function CanvasBlock({
 
   const endDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawingRef.current) return;
-    try { (e.target as HTMLCanvasElement).releasePointerCapture(e.pointerId); } catch { /* noop */ }
+    try {
+      (e.target as HTMLCanvasElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* noop */
+    }
     const finished = drawingRef.current;
     drawingRef.current = null;
     onChange({ ...data, strokes: [...data.strokes, finished] });
@@ -128,16 +132,26 @@ export function CanvasBlock({
             className={`ed-canvas-tool ${tool === "pencil" ? "on" : ""}`}
             onClick={() => setTool("pencil")}
             title="Mechanical pencil (stylus / touch)"
-          >✎</button>
+          >
+            ✎
+          </button>
           <button
             className={`ed-canvas-tool ${tool === "mouse" ? "on" : ""}`}
             onClick={() => setTool("mouse")}
             title="Mouse"
-          >☍</button>
+          >
+            ☍
+          </button>
           <span className="ed-canvas-sep" />
-          <button className="ed-canvas-tool" onClick={undo} title="Undo last stroke">↶</button>
-          <button className="ed-canvas-tool" onClick={clear} title="Clear canvas">⌫</button>
-          <button className="ed-canvas-tool danger" onClick={onDelete} title="Remove canvas">×</button>
+          <button className="ed-canvas-tool" onClick={undo} title="Undo last stroke">
+            ↶
+          </button>
+          <button className="ed-canvas-tool" onClick={clear} title="Clear canvas">
+            ⌫
+          </button>
+          <button className="ed-canvas-tool danger" onClick={onDelete} title="Remove canvas">
+            ×
+          </button>
         </div>
       </div>
       <canvas

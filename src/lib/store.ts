@@ -1,9 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-/** Legacy type kept for callers still importing it. */
-export type Archetype = "notes" | "working" | "recall";
-
 export type FileDoc = {
   id: string;
   folderId: string;
@@ -20,7 +17,7 @@ export type Folder = {
   accent: string;
 };
 
-export type AiSource = "ollama" | "cloud";
+export type AiSource = "local";
 export type AiStatus = "idle" | "busy" | "ok" | "err";
 
 export type SessionEventType = "start" | "break" | "resume" | "end";
@@ -28,9 +25,12 @@ export type SessionEvent = { type: SessionEventType; at: number };
 
 export type SessionCounts = { questions: number; vocab: number };
 
-export type CanvasStroke = { points: { x: number; y: number; p: number }[]; color: string; width: number };
+export type CanvasStroke = {
+  points: { x: number; y: number; p: number }[];
+  color: string;
+  width: number;
+};
 export type CanvasData = { id: string; strokes: CanvasStroke[]; width: number; height: number };
-
 
 type State = {
   folders: Folder[];
@@ -47,9 +47,10 @@ type State = {
   aiStatus: AiStatus;
   aiSource: AiSource | null;
 
-  ollamaEnabled: boolean;
-  ollamaUrl: string;
-  ollamaModel: string;
+  /** Any OpenAI-compatible local server: Ollama, LM Studio, llama.cpp, vLLM, etc. */
+  localAiEnabled: boolean;
+  localAiUrl: string;
+  localAiModel: string;
 
   sessionEvents: SessionEvent[];
   sessionCounts: SessionCounts;
@@ -78,7 +79,9 @@ type State = {
 
   setContent: (fileId: string, content: string) => void;
   setAiStatus: (s: AiStatus, source?: AiSource | null) => void;
-  setOllama: (patch: Partial<Pick<State, "ollamaEnabled" | "ollamaUrl" | "ollamaModel">>) => void;
+  setLocalAi: (
+    patch: Partial<Pick<State, "localAiEnabled" | "localAiUrl" | "localAiModel">>,
+  ) => void;
 
   logSession: (type: SessionEventType) => SessionEvent;
   incSessionCount: (k: keyof SessionCounts) => void;
@@ -122,9 +125,9 @@ export const useStore = create<State>()(
         fileSearch: "",
         aiStatus: "idle",
         aiSource: null,
-        ollamaEnabled: true,
-        ollamaUrl: "http://localhost:11434",
-        ollamaModel: "llama3.2",
+        localAiEnabled: true,
+        localAiUrl: "http://localhost:11434/v1",
+        localAiModel: "llama3.2",
         sessionEvents: [],
         sessionCounts: { questions: 0, vocab: 0 },
         canvases: {},
@@ -134,7 +137,10 @@ export const useStore = create<State>()(
           set((s) => ({
             canvases: {
               ...s.canvases,
-              [fileId]: [...(s.canvases[fileId] ?? []), { id, strokes: [], width: 520, height: 220 }],
+              [fileId]: [
+                ...(s.canvases[fileId] ?? []),
+                { id, strokes: [], width: 520, height: 220 },
+              ],
             },
           }));
           return id;
@@ -159,20 +165,30 @@ export const useStore = create<State>()(
           const now = Date.now();
           const folder = get().folders.find((f) => f.id === folderId);
           const prefix = folder?.name ?? "note";
-          const count = Object.values(get().files).filter((f) => f.folderId === folderId).length + 1;
+          const count =
+            Object.values(get().files).filter((f) => f.folderId === folderId).length + 1;
           const finalName = name ?? `${prefix}-${count}.md`;
           set((s) => ({
-            files: { ...s.files, [id]: { id, folderId, name: finalName, content: "", createdAt: now, updatedAt: now } },
+            files: {
+              ...s.files,
+              [id]: { id, folderId, name: finalName, content: "", createdAt: now, updatedAt: now },
+            },
           }));
           return id;
         },
         renameFile: (id, name) =>
-          set((s) => (s.files[id] ? { files: { ...s.files, [id]: { ...s.files[id], name, updatedAt: Date.now() } } } : s)),
+          set((s) =>
+            s.files[id]
+              ? { files: { ...s.files, [id]: { ...s.files[id], name, updatedAt: Date.now() } } }
+              : s,
+          ),
         deleteFile: (id) =>
           set((s) => {
             if (!s.files[id]) return s;
             const { [id]: _drop, ...rest } = s.files;
-            const remainingInFolder = Object.values(rest).filter((f) => f.folderId === s.files[id].folderId);
+            const remainingInFolder = Object.values(rest).filter(
+              (f) => f.folderId === s.files[id].folderId,
+            );
             const replacement = remainingInFolder[0]?.id ?? Object.values(rest)[0]?.id;
             let files = rest;
             let panes = s.panes;
@@ -219,18 +235,26 @@ export const useStore = create<State>()(
           set((s) => {
             if (s.panes.length <= 1) return s;
             const next = s.panes.filter((_, i) => i !== paneIdx);
-            return { panes: next, focusedPane: Math.max(0, Math.min(s.focusedPane, next.length - 1)) };
+            return {
+              panes: next,
+              focusedPane: Math.max(0, Math.min(s.focusedPane, next.length - 1)),
+            };
           }),
 
         setContent: (fileId, content) =>
           set((s) =>
             s.files[fileId]
-              ? { files: { ...s.files, [fileId]: { ...s.files[fileId], content, updatedAt: Date.now() } } }
+              ? {
+                  files: {
+                    ...s.files,
+                    [fileId]: { ...s.files[fileId], content, updatedAt: Date.now() },
+                  },
+                }
               : s,
           ),
         setAiStatus: (aiStatus, aiSource) =>
           set((s) => ({ aiStatus, aiSource: aiSource === undefined ? s.aiSource : aiSource })),
-        setOllama: (patch) => set((s) => ({ ...s, ...patch })),
+        setLocalAi: (patch) => set((s) => ({ ...s, ...patch })),
 
         logSession: (type) => {
           const evt: SessionEvent = { type, at: Date.now() };
@@ -243,7 +267,7 @@ export const useStore = create<State>()(
       };
     },
     {
-      name: "neurovim-state-v3",
+      name: "neurovim-state-v4",
       partialize: (s) => ({
         folders: s.folders,
         files: s.files,
@@ -251,9 +275,9 @@ export const useStore = create<State>()(
         panes: s.panes,
         focusedPane: s.focusedPane,
         sidebarOpen: s.sidebarOpen,
-        ollamaEnabled: s.ollamaEnabled,
-        ollamaUrl: s.ollamaUrl,
-        ollamaModel: s.ollamaModel,
+        localAiEnabled: s.localAiEnabled,
+        localAiUrl: s.localAiUrl,
+        localAiModel: s.localAiModel,
         sessionEvents: s.sessionEvents,
         sessionCounts: s.sessionCounts,
         canvases: s.canvases,
@@ -272,20 +296,43 @@ export function computeSessionStats(events: SessionEvent[], endAt: number) {
 
   for (const e of events) {
     if (e.type === "start" || e.type === "resume") {
-      if (breakSince !== null) { breakMs += e.at - breakSince; breakSince = null; }
+      if (breakSince !== null) {
+        breakMs += e.at - breakSince;
+        breakSince = null;
+      }
       workingSince = e.at;
     } else if (e.type === "break") {
-      if (workingSince !== null) { const d = e.at - workingSince; workMs += d; workIntervals.push(d); workingSince = null; }
+      if (workingSince !== null) {
+        const d = e.at - workingSince;
+        workMs += d;
+        workIntervals.push(d);
+        workingSince = null;
+      }
       breakSince = e.at;
     } else if (e.type === "end") {
-      if (workingSince !== null) { const d = e.at - workingSince; workMs += d; workIntervals.push(d); workingSince = null; }
-      if (breakSince !== null) { breakMs += e.at - breakSince; breakSince = null; }
+      if (workingSince !== null) {
+        const d = e.at - workingSince;
+        workMs += d;
+        workIntervals.push(d);
+        workingSince = null;
+      }
+      if (breakSince !== null) {
+        breakMs += e.at - breakSince;
+        breakSince = null;
+      }
     }
   }
-  if (workingSince !== null) { const d = endAt - workingSince; workMs += d; workIntervals.push(d); }
-  if (breakSince !== null) { breakMs += endAt - breakSince; }
+  if (workingSince !== null) {
+    const d = endAt - workingSince;
+    workMs += d;
+    workIntervals.push(d);
+  }
+  if (breakSince !== null) {
+    breakMs += endAt - breakSince;
+  }
 
-  const avgWorkMs = workIntervals.length > 0 ? workIntervals.reduce((a, b) => a + b, 0) / workIntervals.length : 0;
+  const avgWorkMs =
+    workIntervals.length > 0 ? workIntervals.reduce((a, b) => a + b, 0) / workIntervals.length : 0;
   return { workMs, breakMs, avgWorkMs, workIntervals };
 }
 

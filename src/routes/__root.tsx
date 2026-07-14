@@ -9,14 +9,18 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "sonner";
 
 function NotFoundComponent() {
   return (
     <div style={{ padding: "2rem", fontFamily: "var(--font-mono)" }}>
       <h2>404</h2>
-      <p>Not found. <a href="/" style={{ color: "var(--ctp-mauve)" }}>Return</a></p>
+      <p>
+        Not found.{" "}
+        <a href="/" style={{ color: "var(--ctp-mauve)" }}>
+          Return
+        </a>
+      </p>
     </div>
   );
 }
@@ -24,7 +28,7 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    console.error(error);
   }, [error]);
   return (
     <div style={{ padding: "2rem", fontFamily: "var(--font-mono)" }}>
@@ -32,14 +36,24 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
       <pre style={{ color: "var(--ctp-red)" }}>{error.message}</pre>
       <button
         className="ed-btn"
-        onClick={() => { router.invalidate(); reset(); }}
-        style={{ padding: "0.4rem 0.8rem", background: "var(--ctp-mauve)", color: "var(--ctp-crust)", border: "none", borderRadius: 4, cursor: "pointer" }}
-      >retry</button>
+        onClick={() => {
+          router.invalidate();
+          reset();
+        }}
+        style={{
+          padding: "0.4rem 0.8rem",
+          background: "var(--ctp-mauve)",
+          color: "var(--ctp-crust)",
+          border: "none",
+          borderRadius: 4,
+          cursor: "pointer",
+        }}
+      >
+        retry
+      </button>
     </div>
   );
 }
-
-
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -54,8 +68,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "NeuroVim — Editor" },
       { name: "twitter:description", content: "Editor with folders, files, and slash commands." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f83154c2-62fb-4c16-a34d-378309c95774/id-preview-8665254f--efa8a859-08b3-448d-a5cc-dbef9d5d7245.lovable.app-1783340698818.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f83154c2-62fb-4c16-a34d-378309c95774/id-preview-8665254f--efa8a859-08b3-448d-a5cc-dbef9d5d7245.lovable.app-1783340698818.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -71,8 +83,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
-      <head><HeadContent /></head>
-      <body>{children}<Scripts /></body>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
     </html>
   );
 }
