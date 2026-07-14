@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { newFsrsState, reviewCard, type FsrsRating, type FsrsState } from "./fsrs";
 
 export type FileDoc = {
   id: string;
@@ -15,6 +16,8 @@ export type Folder = {
   name: string;
   /** Catppuccin accent token name, e.g. "blue", "peach", "green" */
   accent: string;
+  createdAt: number;
+  updatedAt: number;
 };
 
 export type AiSource = "local";
@@ -30,7 +33,53 @@ export type CanvasStroke = {
   color: string;
   width: number;
 };
-export type CanvasData = { id: string; strokes: CanvasStroke[]; width: number; height: number };
+export type CanvasData = {
+  id: string;
+  strokes: CanvasStroke[];
+  width: number;
+  height: number;
+  updatedAt: number;
+};
+
+// ── Cards / spaced repetition ───────────────────────────────
+export type CardKind = "question" | "vocab" | "note";
+export type CardChoice = { text: string; correct: boolean };
+export type Card = {
+  id: string;
+  kind: CardKind;
+  fileId: string | null;
+  /** kind = "question": shared prompt + lettered part + choices. */
+  question?: string;
+  partLabel?: string;
+  choices?: CardChoice[];
+  /** kind = "vocab" (term/definition) or "note" (front only). */
+  front?: string;
+  back?: string;
+  createdAt: number;
+  updatedAt: number;
+  fsrs: FsrsState;
+  flagged: boolean;
+};
+
+/** Full per-review data points — enough for future FSRS parameter optimization. */
+export type ReviewLog = {
+  id: string;
+  cardId: string;
+  rating: FsrsRating;
+  reviewedAt: number;
+  elapsedDays: number;
+  scheduledDays: number;
+  retrievability: number | null;
+  stabilityBefore: number | null;
+  stabilityAfter: number;
+  difficultyBefore: number | null;
+  difficultyAfter: number;
+};
+
+/** Deletion markers so sync can propagate removals instead of resurrecting rows. */
+export type Tombstone = { kind: "file" | "folder" | "canvas" | "card"; id: string; at: number };
+
+export type SyncStatus = "off" | "no-key" | "idle" | "syncing" | "error";
 
 /**
  * One entry per AI call, from the moment it's queued through its result.
@@ -111,6 +160,30 @@ type State = {
   logSession: (type: SessionEventType) => SessionEvent;
   incSessionCount: (k: keyof SessionCounts) => void;
   resetSession: () => void;
+
+  // ── cards / spaced repetition
+  cards: Record<string, Card>;
+  reviewLogs: ReviewLog[];
+  cardsSeeded: boolean;
+  addCard: (
+    card: Pick<Card, "kind" | "fileId"> &
+      Partial<Pick<Card, "question" | "partLabel" | "choices" | "front" | "back">>,
+  ) => string;
+  rateCard: (id: string, rating: FsrsRating) => void;
+  deleteCard: (id: string) => void;
+  toggleCardFlag: (id: string) => void;
+
+  // ── sync / persistence backend
+  tombstones: Tombstone[];
+  syncEnabled: boolean;
+  backendToken: string;
+  syncStatus: SyncStatus;
+  lastSyncAt: number | null;
+  encKeyLoaded: boolean;
+  setSyncConfig: (patch: Partial<Pick<State, "syncEnabled" | "backendToken">>) => void;
+  setSyncRuntime: (
+    patch: Partial<Pick<State, "syncStatus" | "lastSyncAt" | "encKeyLoaded">>,
+  ) => void;
 };
 
 // ── Seed data ──────────────────────────────────────────────
@@ -118,11 +191,35 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+// Seed rows use fixed ids and are re-created by every fresh browser profile.
+// Their timestamps sit at epoch so last-write-wins sync always prefers real
+// synced data over a brand-new seed — a fresh device can never clobber the
+// server copy with empty defaults.
+const SEED_TS = 0;
+
 function seed() {
-  const notesFolder: Folder = { id: "f-notes", name: "notes", accent: "blue" };
-  const workingFolder: Folder = { id: "f-working", name: "working", accent: "peach" };
-  const recallFolder: Folder = { id: "f-recall", name: "recall", accent: "green" };
-  const now = Date.now();
+  const now = SEED_TS;
+  const notesFolder: Folder = {
+    id: "f-notes",
+    name: "notes",
+    accent: "blue",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const workingFolder: Folder = {
+    id: "f-working",
+    name: "working",
+    accent: "peach",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const recallFolder: Folder = {
+    id: "f-recall",
+    name: "recall",
+    accent: "green",
+    createdAt: now,
+    updatedAt: now,
+  };
   const scratch: FileDoc = {
     id: "file-scratch",
     folderId: notesFolder.id,
@@ -137,6 +234,77 @@ function seed() {
     activeFolderId: notesFolder.id,
     panes: [scratch.id],
   };
+}
+
+/** Starter deck: immediately-due cards so /fsrs works out of the box. */
+function seedCards(): Record<string, Card> {
+  const mk = (id: string, partial: Partial<Card> & Pick<Card, "kind">): Card => ({
+    id,
+    fileId: null,
+    createdAt: SEED_TS,
+    updatedAt: SEED_TS,
+    fsrs: newFsrsState(SEED_TS),
+    flagged: false,
+    ...partial,
+  });
+  const deck: Card[] = [
+    mk("seed-zettel-1", {
+      kind: "vocab",
+      front: "permanent note",
+      back: "A note rewritten in your own words, one idea per note, linked into the Zettelkasten — written for your future self, not copied from the source.",
+    }),
+    mk("seed-zettel-2", {
+      kind: "vocab",
+      front: "literature note",
+      back: "A brief capture of what a source says, in your own words, with a citation — raw material that later becomes permanent notes.",
+    }),
+    mk("seed-fsrs-1", {
+      kind: "vocab",
+      front: "retrievability",
+      back: "The probability you can recall a card right now; decays with time since the last review and is what spaced repetition schedules against.",
+    }),
+    mk("seed-fsrs-2", {
+      kind: "vocab",
+      front: "stability (FSRS)",
+      back: "How long a memory lasts: the number of days for retrievability to fall from 100% to 90%. Grows with each successful review.",
+    }),
+    mk("seed-q-1", {
+      kind: "question",
+      question: "In a Zettelkasten, when should you link two notes?",
+      partLabel: "a",
+      choices: [
+        {
+          text: "Whenever the connection would surprise or inform your future self",
+          correct: true,
+        },
+        { text: "Only when both notes share a tag", correct: false },
+        { text: "Only within the same folder", correct: false },
+        { text: "Links should be avoided to keep notes independent", correct: false },
+      ],
+    }),
+    mk("seed-q-2", {
+      kind: "question",
+      question: "Why review a distilled note instead of the original source?",
+      partLabel: "a",
+      choices: [
+        { text: "Testing your own compression exposes what was lost in ingestion", correct: true },
+        { text: "Original sources are usually wrong", correct: false },
+        { text: "It is faster, and speed is the goal", correct: false },
+        { text: "Distilled notes never contain errors", correct: false },
+      ],
+    }),
+    mk("seed-note-1", {
+      kind: "note",
+      front:
+        "Learning loop: ingest (capture in your own words) → distill (compress to the essential claim) → check for loss (can you reconstruct the original argument?) → review on an expanding schedule.",
+    }),
+    mk("seed-note-2", {
+      kind: "note",
+      front:
+        "A lapse is information, not failure — FSRS collapses the interval so the memory is rebuilt while the cost of relearning is still low.",
+    }),
+  ];
+  return Object.fromEntries(deck.map((c) => [c.id, c]));
 }
 
 export const useStore = create<State>()(
@@ -157,6 +325,65 @@ export const useStore = create<State>()(
         sessionCounts: { questions: 0, vocab: 0 },
         aiQueue: [],
         canvases: {},
+        cards: seedCards(),
+        reviewLogs: [],
+        cardsSeeded: true,
+        tombstones: [],
+        syncEnabled: false,
+        backendToken: "",
+        syncStatus: "off" as SyncStatus,
+        lastSyncAt: null,
+        encKeyLoaded: false,
+
+        addCard: (partial) => {
+          const id = `card-${uid()}`;
+          const now = Date.now();
+          const card: Card = {
+            id,
+            createdAt: now,
+            updatedAt: now,
+            fsrs: newFsrsState(now),
+            flagged: false,
+            ...partial,
+          };
+          set((s) => ({ cards: { ...s.cards, [id]: card } }));
+          return id;
+        },
+        rateCard: (id, rating) =>
+          set((s) => {
+            const card = s.cards[id];
+            if (!card) return s;
+            const now = Date.now();
+            const { state: fsrs, log } = reviewCard(card.fsrs, rating, now);
+            const entry: ReviewLog = { id: `rev-${uid()}`, cardId: id, ...log };
+            return {
+              cards: { ...s.cards, [id]: { ...card, fsrs, updatedAt: now } },
+              reviewLogs: [...s.reviewLogs, entry],
+            };
+          }),
+        deleteCard: (id) =>
+          set((s) => {
+            if (!s.cards[id]) return s;
+            const { [id]: _drop, ...cards } = s.cards;
+            return {
+              cards,
+              tombstones: [...s.tombstones, { kind: "card" as const, id, at: Date.now() }],
+            };
+          }),
+        toggleCardFlag: (id) =>
+          set((s) =>
+            s.cards[id]
+              ? {
+                  cards: {
+                    ...s.cards,
+                    [id]: { ...s.cards[id], flagged: !s.cards[id].flagged, updatedAt: Date.now() },
+                  },
+                }
+              : s,
+          ),
+
+        setSyncConfig: (patch) => set((s) => ({ ...s, ...patch })),
+        setSyncRuntime: (patch) => set((s) => ({ ...s, ...patch })),
 
         enqueueAiEntry: (command, system, prompt) => {
           const id = `aiq-${uid()}`;
@@ -183,7 +410,7 @@ export const useStore = create<State>()(
               ...s.canvases,
               [fileId]: [
                 ...(s.canvases[fileId] ?? []),
-                { id, strokes: [], width: 520, height: 220 },
+                { id, strokes: [], width: 520, height: 220, updatedAt: Date.now() },
               ],
             },
           }));
@@ -193,7 +420,9 @@ export const useStore = create<State>()(
           set((s) => ({
             canvases: {
               ...s.canvases,
-              [fileId]: (s.canvases[fileId] ?? []).map((c) => (c.id === canvas.id ? canvas : c)),
+              [fileId]: (s.canvases[fileId] ?? []).map((c) =>
+                c.id === canvas.id ? { ...canvas, updatedAt: Date.now() } : c,
+              ),
             },
           })),
         deleteCanvas: (fileId, canvasId) =>
@@ -202,6 +431,10 @@ export const useStore = create<State>()(
               ...s.canvases,
               [fileId]: (s.canvases[fileId] ?? []).filter((c) => c.id !== canvasId),
             },
+            tombstones: [
+              ...s.tombstones,
+              { kind: "canvas" as const, id: canvasId, at: Date.now() },
+            ],
           })),
 
         createFile: (folderId, name) => {
@@ -254,12 +487,19 @@ export const useStore = create<State>()(
             } else {
               panes = s.panes.map((p) => (p === id ? replacement : p));
             }
-            return { files, panes };
+            return {
+              files,
+              panes,
+              tombstones: [...s.tombstones, { kind: "file" as const, id, at: Date.now() }],
+            };
           }),
         setActiveFolder: (id) => set({ activeFolderId: id, fileSearch: "" }),
         createFolder: (name, accent = "lavender") => {
           const id = `f-${uid()}`;
-          set((s) => ({ folders: [...s.folders, { id, name, accent }] }));
+          const now = Date.now();
+          set((s) => ({
+            folders: [...s.folders, { id, name, accent, createdAt: now, updatedAt: now }],
+          }));
           return id;
         },
         setFileSearch: (q) => set({ fileSearch: q }),
@@ -312,6 +552,43 @@ export const useStore = create<State>()(
     },
     {
       name: "neurovim-state-v4",
+      version: 5,
+      migrate: (persisted) => {
+        // v4 (version 0) → v5: entity timestamps + cards/sync fields.
+        const s = persisted as Record<string, unknown>;
+        const now = Date.now();
+        if (Array.isArray(s.folders)) {
+          s.folders = (s.folders as Partial<Folder>[]).map((f) => ({
+            ...f,
+            createdAt: f.createdAt ?? now,
+            updatedAt: f.updatedAt ?? now,
+          }));
+        }
+        if (s.canvases && typeof s.canvases === "object") {
+          const patched: Record<string, CanvasData[]> = {};
+          for (const [fileId, list] of Object.entries(
+            s.canvases as Record<string, Partial<CanvasData>[]>,
+          )) {
+            patched[fileId] = list.map((c) => ({
+              ...(c as CanvasData),
+              updatedAt: c.updatedAt ?? now,
+            }));
+          }
+          s.canvases = patched;
+        }
+        if (!s.cards) {
+          s.cards = seedCards();
+          s.cardsSeeded = true;
+        }
+        s.reviewLogs = s.reviewLogs ?? [];
+        s.tombstones = s.tombstones ?? [];
+        s.syncEnabled = s.syncEnabled ?? false;
+        s.backendToken = s.backendToken ?? "";
+        if (Array.isArray(s.panes) && typeof s.focusedPane === "number") {
+          s.focusedPane = Math.max(0, Math.min(s.focusedPane, s.panes.length - 1));
+        }
+        return s;
+      },
       partialize: (s) => ({
         folders: s.folders,
         files: s.files,
@@ -326,6 +603,12 @@ export const useStore = create<State>()(
         sessionCounts: s.sessionCounts,
         aiQueue: s.aiQueue,
         canvases: s.canvases,
+        cards: s.cards,
+        reviewLogs: s.reviewLogs,
+        cardsSeeded: s.cardsSeeded,
+        tombstones: s.tombstones,
+        syncEnabled: s.syncEnabled,
+        backendToken: s.backendToken,
       }),
     },
   ),

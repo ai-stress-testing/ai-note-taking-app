@@ -74,8 +74,18 @@ export const COMMANDS: CommandDef[] = [
     ai: false,
     localHint: "tpl:vocab",
   },
-  { name: "/card", description: "Insert a flashcard template", ai: false, localHint: "tpl:card" },
-  { name: "/fsrs", description: "Insert an FSRS review block", ai: false, localHint: "tpl:fsrs" },
+  {
+    name: "/card",
+    description: "Insert a flashcard (close with /> to add to deck)",
+    ai: false,
+    localHint: "tpl:card",
+  },
+  {
+    name: "/fsrs",
+    description: "Review due cards (FSRS spaced repetition)",
+    ai: false,
+    localHint: "tpl:fsrs",
+  },
 
   // ── Session timing ──────────────────────────────
   { name: "/start", description: "Mark session start", ai: false, localHint: "session:start" },

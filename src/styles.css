@@ -52,7 +52,7 @@ body {
   margin: 0;
   background: var(--ctp-base);
   color: var(--ctp-text);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-feature-settings: "calt", "liga", "ss01", "ss02";
   font-variant-ligatures: contextual;
   -webkit-font-smoothing: antialiased;
@@ -81,6 +81,12 @@ body {
   grid-template-rows: 40px 1fr 26px;
   min-width: 0;
   min-height: 0;
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--font-mono);
 }
 
 /* ============================================================
@@ -491,7 +497,7 @@ body {
   border: 1px solid var(--ctp-surface0);
   border-radius: 10px;
   box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.6);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   overflow: hidden;
   animation: ed-pop 160ms ease-out;
 }
@@ -586,7 +592,7 @@ body {
 .ed-btn {
   padding: 6px 14px;
   border-radius: 5px;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 12px;
   cursor: pointer;
   border: 1px solid transparent;
@@ -660,6 +666,8 @@ body {
   background: var(--ctp-base);
   gap: 1px;
   background-color: var(--ctp-crust);
+  /* Anchor for the ambient wave canvas along the workspace bottom. */
+  position: relative;
 }
 .ed-pane {
   display: flex;
@@ -1100,7 +1108,7 @@ body {
 .ed-mirror,
 .ed-textarea.overlay {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 1.6;
   padding: 1rem 1.25rem;
   margin: 0;
@@ -1218,6 +1226,15 @@ body {
 }
 .ed-test-result {
   font-size: 11px;
+}
+.ed-settings-divider {
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ctp-surface0);
+  color: var(--ctp-mauve);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
 }
 .ed-test-result.ok {
   color: var(--ctp-green);
@@ -1373,4 +1390,149 @@ body {
 }
 .ed-ai-queue-item.queued {
   opacity: 0.75;
+}
+
+/* ============================================================
+   Flashcard review tray (/fsrs)
+   Motion tokens: 160ms ease-out; disabled under reduced motion.
+   ============================================================ */
+.ed-fc-tray {
+  margin: 0 1.25rem 1.5rem;
+  border: 1px solid var(--ctp-surface0);
+  border-radius: 8px;
+  background: var(--ctp-mantle);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--font-sans);
+}
+.ed-fc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--ctp-overlay1);
+}
+.ed-fc-kind {
+  color: var(--ctp-mauve);
+  letter-spacing: 0.08em;
+}
+.ed-fc-progress {
+  flex: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ed-fc-card {
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: var(--ctp-crust);
+  border: 1px solid var(--ctp-surface0);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(4px);
+}
+.ed-fc-card.in {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms ease-out;
+}
+.ed-fc-q {
+  color: var(--ctp-text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ed-fc-part {
+  color: var(--ctp-overlay1);
+  font-size: 11px;
+}
+.ed-fc-back {
+  color: var(--ctp-lavender);
+  font-size: 12.5px;
+  line-height: 1.6;
+  border-top: 1px dashed var(--ctp-surface0);
+  padding-top: 8px;
+}
+.ed-fc-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ed-fc-choice {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ctp-subtext1);
+}
+.ed-fc-choice .box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--ctp-surface1);
+  border-radius: 3px;
+  font-size: 10px;
+  flex: none;
+  transform: translateY(2px);
+}
+.ed-fc-choice.correct {
+  color: var(--ctp-green);
+}
+.ed-fc-choice.correct .box {
+  border-color: var(--ctp-green);
+  color: var(--ctp-green);
+}
+.ed-fc-choice.wrong {
+  opacity: 0.55;
+}
+.ed-fc-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ed-fc-actions kbd {
+  font-size: 9px;
+  color: var(--ctp-overlay0);
+  border: 1px solid var(--ctp-surface1);
+  border-radius: 3px;
+  padding: 0 3px;
+  margin-left: 6px;
+}
+.ed-fc-rate .ivl {
+  color: var(--ctp-overlay1);
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.ed-fc-rate.r1 {
+  color: var(--ctp-red);
+}
+.ed-fc-rate.r2 {
+  color: var(--ctp-peach);
+}
+.ed-fc-rate.r3 {
+  color: var(--ctp-green);
+}
+.ed-fc-rate.r4 {
+  color: var(--ctp-sapphire);
+}
+.ed-fc-done {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ctp-subtext1);
+  font-size: 12.5px;
+  padding: 6px 2px;
+}
+.ed-fc-done-mark {
+  color: var(--ctp-green);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ed-fc-card.in {
+    transition: none;
+  }
 }

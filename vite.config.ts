@@ -23,5 +23,9 @@ export default defineConfig(async ({ command }) => ({
     alias: { "@": `${process.cwd()}/src` },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
+  // The persistence layer runs under Bun (dev and Docker); keep its sqlite
+  // driver out of every bundle so Vite/nitro never try to resolve it.
+  ssr: { external: ["bun:sqlite"] },
+  build: { rollupOptions: { external: ["bun:sqlite"] } },
   server: { port: 8080 },
 }));

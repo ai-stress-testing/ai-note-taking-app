@@ -12,6 +12,10 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { LocalAiAlert } from "@/components/LocalAiAlert";
 import { AiQueueModal } from "@/components/AiQueueModal";
 import { sanitizeForPrompt, extractCurrentQuestion, isLocalAiUnreachable } from "@/lib/prompt";
+import { initSync } from "@/lib/sync";
+import { parseBlockToCards } from "@/lib/card-parse";
+import { FlashcardTray } from "@/components/FlashcardTray";
+import { AmbientWaves } from "@/components/AmbientWaves";
 
 import ogImage from "../../public/og-image.jpg.asset.json";
 
@@ -79,6 +83,7 @@ function Editor() {
     addCanvas,
     setCanvas,
     deleteCanvas,
+    addCard,
   } = useStore();
 
   const [hydrated, setHydrated] = useState(false);
@@ -86,11 +91,15 @@ function Editor() {
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aiQueueOpen, setAiQueueOpen] = useState(false);
+  const [reviewIds, setReviewIds] = useState<string[] | null>(null);
   const [localAiAlert, setLocalAiAlert] = useState<null | string>(null);
   const textareaRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const mirrorRefs = useRef<Array<HTMLPreElement | null>>([]);
 
-  useEffect(() => setHydrated(true), []);
+  useEffect(() => {
+    setHydrated(true);
+    initSync();
+  }, []);
 
   const activeFileId = panes[focusedPane];
   const active = files[activeFileId];
@@ -269,13 +278,22 @@ function Editor() {
             insertAtRange(lineStart, lineEnd, text, caretOffset);
             return;
           }
-          case "tpl:close":
+          case "tpl:close": {
+            const buffer = useStore.getState().files[activeFileId]?.content ?? "";
+            const parsed = parseBlockToCards(buffer, lineStart);
+            for (const p of parsed) addCard({ ...p, fileId: activeFileId });
+            if (parsed.length > 0) {
+              toast.success(
+                `${parsed.length} card${parsed.length === 1 ? "" : "s"} added to the review deck`,
+              );
+            }
             insertAtRange(
               lineStart,
               lineEnd,
               `──────────────────────────────────────────────────\n\n`,
             );
             return;
+          }
           case "tpl:vocab": {
             incSessionCount("vocab");
             const tpl = `── Vocab ─────────────────────────────────────────\n  term:       ${args || ""}\n  definition: \n  example:    \n`;
@@ -283,13 +301,28 @@ function Editor() {
             return;
           }
           case "tpl:card": {
-            const tpl = `── Card ──────────────────────────────────────────\n  front: ${args || ""}\n  back:  \n──────────────────────────────────────────────────\n\n`;
+            const tpl = `── Card ──────────────────────────────────────────\n  front: ${args || ""}\n  back:  \n`;
             insertAtRange(lineStart, lineEnd, tpl);
             return;
           }
           case "tpl:fsrs": {
-            const tpl = `── FSRS Review ───────────────────────────────────\n  card:      ${args || ""}\n  rating:    (again|hard|good|easy)\n  interval:  \n  next-due:  \n──────────────────────────────────────────────────\n\n`;
-            insertAtRange(lineStart, lineEnd, tpl);
+            const all = Object.values(useStore.getState().cards);
+            const now = Date.now();
+            const due = all
+              .filter((c) => c.fsrs.dueAt <= now)
+              .sort((a, b) => a.fsrs.dueAt - b.fsrs.dueAt)
+              .slice(0, 10);
+            insertAtRange(lineStart, lineEnd, "");
+            if (due.length === 0) {
+              const next = all.map((c) => c.fsrs.dueAt).sort((a, b) => a - b)[0];
+              toast.success(
+                next
+                  ? `No cards due — next due ${new Date(next).toLocaleString()}`
+                  : "No cards yet — close a /card, /vocab, or /question block to create some",
+              );
+              return;
+            }
+            setReviewIds(due.map((c) => c.id));
             return;
           }
           case "session:start": {
@@ -448,6 +481,7 @@ function Editor() {
       incSessionCount,
       logSession,
       runEndSession,
+      addCard,
     ],
   );
 
@@ -702,11 +736,14 @@ function Editor() {
                           <CanvasBlock
                             key={cv.id}
                             data={cv}
-                            onChange={(next) => setCanvas(b.id, next)}
+                            onChange={(next) => setCanvas(b.id, { ...cv, ...next })}
                             onDelete={() => deleteCanvas(b.id, cv.id)}
                           />
                         ))}
                       </div>
+                    )}
+                    {hydrated && isFocused && reviewIds && (
+                      <FlashcardTray ids={reviewIds} onClose={() => setReviewIds(null)} />
                     )}
                   </div>
                   {isFocused && slash.open && filteredCmds.length > 0 && (
@@ -723,6 +760,7 @@ function Editor() {
               </div>
             );
           })}
+          {hydrated && <AmbientWaves />}
         </div>
 
         <div className="ed-status" role="status">

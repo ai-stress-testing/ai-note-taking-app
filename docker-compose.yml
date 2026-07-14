@@ -1,0 +1,14 @@
+services:
+  neurovim:
+    build: .
+    # Bound to localhost on purpose — this is a personal, single-user server.
+    # To reach it from other devices on your network, change to "8080:8080"
+    # and put TLS (Caddy/Traefik/nginx) in front before exposing further.
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - neurovim-data:/data
+    restart: unless-stopped
+
+volumes:
+  neurovim-data:
