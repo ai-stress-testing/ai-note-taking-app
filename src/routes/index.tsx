@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore, computeSessionStats, fmtDuration, fmtClock } from "@/lib/store";
 import { COMMANDS, findCommand, type CommandDef, END_SESSION_SYSTEM_EXPORT } from "@/lib/commands";
-import { runAi } from "@/lib/ai-client";
+import { queueAi } from "@/lib/ai-queue";
 import { getCaretCoords } from "@/lib/caret";
 import { toast } from "sonner";
 import { Sidebar } from "@/components/Sidebar";
@@ -10,6 +10,7 @@ import { DownloadModal } from "@/components/DownloadModal";
 import { CanvasBlock } from "@/components/CanvasBlock";
 import { SettingsModal } from "@/components/SettingsModal";
 import { LocalAiAlert } from "@/components/LocalAiAlert";
+import { AiQueueModal } from "@/components/AiQueueModal";
 import { sanitizeForPrompt, extractCurrentQuestion, isLocalAiUnreachable } from "@/lib/prompt";
 
 import ogImage from "../../public/og-image.jpg.asset.json";
@@ -84,6 +85,7 @@ function Editor() {
   const [slash, setSlash] = useState<SlashState>(CLOSED);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [aiQueueOpen, setAiQueueOpen] = useState(false);
   const [localAiAlert, setLocalAiAlert] = useState<null | string>(null);
   const textareaRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const mirrorRefs = useRef<Array<HTMLPreElement | null>>([]);
@@ -179,7 +181,8 @@ function Editor() {
       setAiStatus("busy", null);
       const toastId = toast.loading("/end — generating AI summary…");
       try {
-        const { text, source } = await runAi({
+        const { text, source } = await queueAi({
+          command: "/end",
           system: END_SESSION_SYSTEM_EXPORT,
           prompt: `Session buffer:\n${bufferContent}\n\nCounts: ${JSON.stringify(counts)}\nDurations: worked=${fmtDuration(
             stats.workMs,
@@ -393,7 +396,8 @@ function Editor() {
       setAiStatus("busy", null);
       const toastId = toast.loading(`${cmd.name} — calling AI…`);
       try {
-        const { text, source } = await runAi({
+        const { text, source } = await queueAi({
+          command: cmd.name,
           system: cmd.system!,
           prompt,
           localAiEnabled,
@@ -731,19 +735,26 @@ function Editor() {
             work {fmtDuration(liveStats.workMs)} · break {fmtDuration(liveStats.breakMs)}
           </div>
           <div className="ed-status-spacer" />
-          <div className={`ed-status-ai ${aiStatus}`} aria-live="polite">
+          <button
+            type="button"
+            className={`ed-status-ai ${aiStatus}`}
+            aria-live="polite"
+            onClick={() => setAiQueueOpen(true)}
+            title="View AI request queue"
+          >
             <span className="dot" />
             {aiStatus === "busy" && "AI · thinking…"}
             {aiStatus === "idle" && "AI · idle"}
             {aiStatus === "ok" && `AI · ok (${aiSource})`}
             {aiStatus === "err" && "AI · error"}
-          </div>
+          </button>
           <div className="ed-status-seg">{localAiEnabled ? localAiModel : "AI disabled"}</div>
         </div>
       </div>
 
       <DownloadModal open={downloadOpen} onClose={() => setDownloadOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <AiQueueModal open={aiQueueOpen} onClose={() => setAiQueueOpen(false)} />
       <LocalAiAlert
         open={localAiAlert !== null}
         message={localAiAlert ?? ""}

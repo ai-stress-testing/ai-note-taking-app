@@ -32,12 +32,17 @@ Zustand + Tailwind v4. Package manager: Bun.
   a few hundred lines of actions.
 - `src/lib/commands.ts` — slash-command definitions (`/question`, `/canvas`,
   `/start`, `/help`, etc.) and their text-block templates.
-- `src/lib/ai-client.ts` — the only AI entry point (`runAi`), local-only.
+- `src/lib/ai-client.ts` — the low-level AI call (`runAi`), local-only.
   Speaks the OpenAI-compatible chat-completions protocol so any local
   server (Ollama, LM Studio, llama.cpp, vLLM) works behind the configured
   URL/model — don't hardcode a specific provider here. Don't add a cloud
   provider path without discussing it first — the local-only design is
   intentional (see comments in that file).
+- `src/lib/ai-queue.ts` — `queueAi`, the entry point app code should
+  actually call (not `runAi` directly). Serializes every call behind one
+  promise chain so only one request is ever in flight, and records each
+  one into the store's `aiQueue` — the same list backs both the pending
+  queue and the audit trail shown in the AI status button's modal.
 - `src/lib/prompt.ts` — prompt-injection/control-char sanitization before any
   note content is sent to the model.
 - `src/components/` — hand-rolled UI (no shadcn components are wired in

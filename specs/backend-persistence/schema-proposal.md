@@ -121,7 +121,7 @@ plaintext). `order_index` and the `card_answers` join rows are plaintext
    record) at the cost of the same ciphertext existing N times for an
    N-part question. **Alternative considered**: a `questions` table
    (`id`, `question_ct`, `question_nonce`, `file_id`) with `cards.
-   question_id` replacing `cards.question_ct`/`question_nonce` directly —
+question_id` replacing `cards.question_ct`/`question_nonce` directly —
    avoids duplication, costs a join on every read. Recommend the
    denormalized version above unless duplication turns out to matter in
    practice.

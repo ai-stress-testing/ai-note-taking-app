@@ -32,6 +32,26 @@ export type CanvasStroke = {
 };
 export type CanvasData = { id: string; strokes: CanvasStroke[]; width: number; height: number };
 
+/**
+ * One entry per AI call, from the moment it's queued through its result.
+ * This list *is* the queue (entries with status "queued"/"sending") and
+ * the audit trail (everything else) — same array, so there's one place
+ * to look for "what's about to be sent" and "what already was."
+ */
+export type AiQueueStatus = "queued" | "sending" | "ok" | "error";
+export type AiQueueEntry = {
+  id: string;
+  command: string;
+  system: string;
+  prompt: string;
+  status: AiQueueStatus;
+  requestedAt: number;
+  respondedAt?: number;
+  result?: string;
+  error?: string;
+};
+const AI_QUEUE_MAX = 50;
+
 type State = {
   folders: Folder[];
   files: Record<string, FileDoc>;
@@ -54,6 +74,11 @@ type State = {
 
   sessionEvents: SessionEvent[];
   sessionCounts: SessionCounts;
+
+  /** Queued/in-flight/completed AI calls, newest first, capped at AI_QUEUE_MAX. */
+  aiQueue: AiQueueEntry[];
+  enqueueAiEntry: (command: string, system: string, prompt: string) => string;
+  updateAiEntry: (id: string, patch: Partial<AiQueueEntry>) => void;
 
   /** Per-file canvas blocks (inserted via /canvas). */
   canvases: Record<string, CanvasData[]>;
@@ -130,7 +155,26 @@ export const useStore = create<State>()(
         localAiModel: "llama3.2",
         sessionEvents: [],
         sessionCounts: { questions: 0, vocab: 0 },
+        aiQueue: [],
         canvases: {},
+
+        enqueueAiEntry: (command, system, prompt) => {
+          const id = `aiq-${uid()}`;
+          const entry: AiQueueEntry = {
+            id,
+            command,
+            system,
+            prompt,
+            status: "queued",
+            requestedAt: Date.now(),
+          };
+          set((s) => ({ aiQueue: [entry, ...s.aiQueue].slice(0, AI_QUEUE_MAX) }));
+          return id;
+        },
+        updateAiEntry: (id, patch) =>
+          set((s) => ({
+            aiQueue: s.aiQueue.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+          })),
 
         addCanvas: (fileId) => {
           const id = `cv-${uid()}`;
@@ -280,6 +324,7 @@ export const useStore = create<State>()(
         localAiModel: s.localAiModel,
         sessionEvents: s.sessionEvents,
         sessionCounts: s.sessionCounts,
+        aiQueue: s.aiQueue,
         canvases: s.canvases,
       }),
     },

@@ -844,6 +844,13 @@ body {
   align-items: center;
   gap: 0.5rem;
   color: var(--ctp-overlay1);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font: inherit;
+}
+.ed-status-ai:hover {
+  color: var(--ctp-text);
 }
 .ed-status-ai.busy {
   color: var(--ctp-yellow);
@@ -1288,4 +1295,82 @@ body {
   font-size: 10px;
   margin: 6px 0;
   overflow-x: auto;
+}
+
+/* ============================================================
+   AI queue / audit modal
+   ============================================================ */
+.ed-ai-queue {
+  width: min(92vw, 38rem);
+}
+.ed-ai-queue .ed-modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.ed-ai-queue-empty {
+  color: var(--ctp-overlay1);
+  font-size: 11px;
+  padding: 12px 0;
+  text-align: center;
+}
+.ed-ai-queue-item {
+  border: 1px solid var(--ctp-surface0);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ed-ai-queue-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+.ed-ai-queue-cmd {
+  color: var(--ctp-mauve);
+  font-weight: 600;
+}
+.ed-ai-queue-status {
+  color: var(--ctp-overlay1);
+}
+.ed-ai-queue-status.sending {
+  color: var(--ctp-yellow);
+}
+.ed-ai-queue-status.ok {
+  color: var(--ctp-green);
+}
+.ed-ai-queue-status.error {
+  color: var(--ctp-red);
+}
+.ed-ai-queue-time {
+  color: var(--ctp-overlay0);
+  margin-left: auto;
+}
+.ed-ai-queue-prompt,
+.ed-ai-queue-result,
+.ed-ai-queue-error {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 8rem;
+  overflow-y: auto;
+}
+.ed-ai-queue-prompt {
+  background: var(--ctp-crust);
+  color: var(--ctp-subtext1);
+}
+.ed-ai-queue-result {
+  background: color-mix(in oklab, var(--ctp-green) 10%, var(--ctp-crust));
+  color: var(--ctp-green);
+}
+.ed-ai-queue-error {
+  background: color-mix(in oklab, var(--ctp-red) 10%, var(--ctp-crust));
+  color: var(--ctp-red);
+}
+.ed-ai-queue-item.queued {
+  opacity: 0.75;
 }
