@@ -40,6 +40,15 @@ first defaults or handing their notes to a third-party cloud service.
   same backend, same data model, no exposed network port at all.
 - R8. Existing local-only users are unaffected. No forced migration, no
   nag screens.
+- R9. Note content, canvases, and blobs are encrypted before they ever
+  leave the browser, using a key the user supplies from their own
+  filesystem — not a key the app generates or stores for them. The
+  backend stores and syncs ciphertext; it never has the key and never
+  sees plaintext, even if the server itself were fully compromised.
+- R10. Folders are user-created and user-named (not a fixed built-in
+  set) and must sync like everything else in R2 — the existing
+  create/rename/delete-folder behavior extends to the backend, it isn't
+  a new client feature by itself.
 
 ## Non-goals (v1)
 
@@ -50,8 +59,10 @@ first defaults or handing their notes to a third-party cloud service.
   workspace, not a team of separate users with separate logins.
 - Public sharing / read-only links to a note.
 - Automatic conflict resolution beyond last-write-wins-by-timestamp.
-- Encryption at rest by default (documented as a future option, not
-  required for v1 — see design.md).
+- Key recovery. Losing the key file means losing access to everything
+  encrypted with it — by construction (see R9) there is no "reset my
+  encryption key" path that doesn't involve re-encrypting from a
+  plaintext copy the user kept elsewhere.
 
 ## Edge cases
 
@@ -65,6 +76,14 @@ first defaults or handing their notes to a third-party cloud service.
 - **Token loss**: if a user loses their auth token, there must be a
   documented recovery path (re-derive/reset from the machine running the
   backend) that doesn't require wiping their data.
+- **Encryption key loss**: unrecoverable by design (see non-goals). The
+  UI must make this consequence unmistakable at the point the user first
+  sets up their key, not bury it in docs.
+- **New device, first connection**: a second device pointed at an
+  existing backend has no way to decrypt the synced ciphertext until the
+  user supplies the same key file on that device too — the UI must
+  explain this clearly rather than silently showing unreadable/failed
+  content.
 - **Blob growth**: content-addressed blobs referenced by nothing (e.g.
   after a file/canvas delete) shouldn't grow storage unbounded forever —
   needs a cleanup story, even if it's a manual admin action in v1.

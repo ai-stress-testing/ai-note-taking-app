@@ -47,6 +47,12 @@ Zustand + Tailwind v4. Package manager: Bun.
 
 ## Conventions
 
+- Before writing new code, run through the decision ladder: does this
+  need to exist at all? Already in this codebase? In the standard
+  library or a native platform feature (e.g. Web Crypto, `bun:sqlite`)?
+  Already an installed dependency? A one-line solution? Only then a
+  minimal implementation. Don't add a dependency or an abstraction the
+  ladder would have skipped.
 - No comments unless they explain a non-obvious _why_ (see existing files
   for the bar to clear).
 - Prettier formatting is enforced via `eslint-plugin-prettier`; run

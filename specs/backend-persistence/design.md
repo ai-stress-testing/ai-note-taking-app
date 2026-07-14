@@ -71,10 +71,13 @@ purpose — the sync layer's job is to keep two copies of *that* shape
 consistent, not to invent a new one.
 
 ```sql
+-- name_ct / *_ct columns hold base64 AES-GCM ciphertext + their nonce;
+-- the server only ever reads/writes these as opaque blobs of text.
 create table folders (
   id text primary key,
-  name text not null,
-  accent text not null,
+  name_ct text not null,
+  name_nonce text not null,
+  accent text not null,        -- plaintext; a UI accent color, not content
   created_at integer not null,
   updated_at integer not null
 );
@@ -82,8 +85,10 @@ create table folders (
 create table files (
   id text primary key,
   folder_id text not null references folders(id),
-  name text not null,
-  content text not null default '',
+  name_ct text not null,
+  name_nonce text not null,
+  content_ct text not null default '',
+  content_nonce text not null default '',
   created_at integer not null,
   updated_at integer not null
 );
@@ -93,7 +98,8 @@ create table canvases (
   file_id text not null references files(id),
   width integer not null,
   height integer not null,
-  strokes_json text not null,  -- small; stays inline like today's store
+  strokes_ct text not null,    -- encrypted JSON; small, stays inline like today's store
+  strokes_nonce text not null,
   updated_at integer not null
 );
 
@@ -124,21 +130,38 @@ person's one workspace (matches R8/non-goals). Adding multi-workspace or
 multi-user later means adding a foreign key and a `where` clause, not a
 rewrite, but that's future work, not now.
 
-`content` stays as plain `TEXT`, not blob-referenced — notes are small
-text, and keeping them queryable/greppable in SQLite directly is more
-useful than forcing everything through the blob path. "Blobs" here means
-genuinely binary, potentially-large content: canvas *snapshots* (a
-rendered PNG, if we add export-as-image later), exported bundle archives,
+`content` stays as a `TEXT` column holding ciphertext, not blob-referenced
+— notes are small, and one row per file is simpler than forcing
+everything through the blob path. This does mean the server can't
+full-text-search or grep note content directly (R9 costs something: the
+server is intentionally blind to it) — any future search feature has to
+run client-side over decrypted content, not as a server-side query.
+"Blobs" here means genuinely binary, potentially-large content: canvas
+*snapshots* (a rendered PNG, if we add export-as-image later), exported
+bundle archives,
 and future pasted images/attachments — not the note text itself.
 
 ## Blob storage
 
-Content-addressed, like Git: `sha256(bytes)` is the key. Stored on disk at
+Content-addressed, like Git: `sha256(bytes)` is the key, computed over
+the **ciphertext** the client uploads (the server never sees plaintext
+bytes to hash in the first place — see Security). Stored on disk at
 `blobs/<hash[0:2]>/<hash>` under a configurable data directory (a Docker
-named volume in the container case). Benefits: automatic dedup of
-identical content, cache-friendly (immutable once written — a hash never
-changes), and no user-controlled filenames ever touch the filesystem
-(closes the obvious path-traversal footgun by construction).
+named volume in the container case). Benefits: cache-friendly (immutable
+once written — a hash never changes), and no user-controlled filenames
+ever touch the filesystem (closes the obvious path-traversal footgun by
+construction).
+
+One real cost of hashing ciphertext: AES-GCM's random-per-encryption
+nonce means encrypting the same plaintext twice produces different
+ciphertext, so this no longer dedups identical *plaintext* blobs (e.g.
+the same image pasted into two notes) the way pure content-addressing
+normally would. The alternative — a deterministic nonce derived from the
+plaintext's own hash ("convergent encryption") — would restore dedup but
+reintroduces a known weakness (an attacker who guesses the plaintext can
+confirm it matches your ciphertext without the key). Not worth it: disk
+savings from dedup matter far less here than not undermining the "secure
+backend" goal R9 exists for.
 
 Interface kept narrow so the local-filesystem implementation can be
 swapped for S3-compatible storage later without touching callers:
@@ -248,12 +271,64 @@ restructuring of code that already works.
   and note that the blob directory should be backed up alongside the DB
   (a blob hash referenced by a DB row with no corresponding file on disk
   is a real failure mode worth calling out).
-- **Encryption at rest**: not in v1. Documented as a follow-up (e.g.
-  SQLCipher, or relying on the host's disk encryption) rather than
-  built now — the threat model for a personal self-hosted note backend
-  is "don't expose it to the internet without a token/TLS," not "protect
-  against someone with root on the box," and conflating those would add
-  real complexity for a threat most users in scope don't face.
+- **Encryption: client-side, end-to-end, in v1 (R9).** Not server-side
+  encryption-at-rest (e.g. SQLCipher) — the backend never gets the key at
+  all, so it never has plaintext to protect in the first place. Detailed
+  below, since this is a real architectural decision, not a footnote.
+
+### End-to-end encryption design
+
+The key insight that makes this simple: nothing here requires new
+dependencies. The Web Crypto API (`crypto.subtle`), built into every
+browser, does AES-GCM encrypt/decrypt and key import natively — no crypto
+library to add, audit, or keep patched.
+
+**Key.** A 256-bit AES-GCM key. Generated once (`crypto.subtle.
+generateKey`), exported as raw bytes, and saved by the user as a small
+file to **a location of their own choosing** — their password manager's
+attachment storage, a USB drive, wherever. The app never writes the raw
+key to its own storage (not `localStorage`, not IndexedDB, not sent to
+the backend) — "user-specified location" means literally not our
+location.
+
+**"Uploaded by the user."** To use encryption, the user loads their key
+file into the browser via a plain `<input type="file">` — read with
+`File.arrayBuffer()` and imported with `crypto.subtle.importKey`. Two
+options for how long it's held, both worth implementing behind a choice
+rather than picking one silently:
+
+1. **Session-only (default)**: the imported key lives only in memory (a
+   non-persisted piece of app state), gone on page reload. Re-select the
+   key file each session. Strongest posture — the key is never at rest
+   anywhere in the browser.
+2. **Remembered on this device (opt-in)**: import the key as
+   *non-extractable* and store the `CryptoKey` handle in IndexedDB.
+   Non-extractable means the JS runtime can use it to encrypt/decrypt but
+   can never read the raw bytes back out — a real browser security
+   primitive, not obfuscation. Trades a small amount of theoretical
+   attack surface (a compromised browser profile could still *use* the
+   key via the page's own JS) for not re-uploading a file every reload.
+
+Default to (1). Offer (2) as an explicit opt-in, not the default — matches
+the project's general bias toward the more conservative option unless the
+user asks for convenience.
+
+**What's encrypted.** File `content`, file/folder `name`, canvas
+`strokes_json`, and all blob bytes — i.e. everything that's actually
+*about* what the user wrote, not the scaffolding around it. Each field is
+encrypted independently with a fresh random 96-bit nonce (AES-GCM
+requires a unique nonce per encryption under the same key); the nonce
+travels alongside the ciphertext in the same column/blob since it isn't
+secret. IDs, timestamps, folder/file/blob relationships, and `ref_count`
+stay plaintext — the backend needs those to do sync ordering, dedup, and
+garbage collection without ever needing to decrypt anything.
+
+**What this buys, and what it doesn't.** A compromised or malicious
+server operator (including "someone roots the box the Docker container
+runs on") gets ciphertext, not notes. It does *not* protect against a
+compromised *client* (the browser tab has the key in memory while
+you're using it, by necessity) — that's an inherent property of
+client-side encryption, not a gap in this design.
 
 ## Alternatives considered
 
@@ -276,6 +351,16 @@ restructuring of code that already works.
   container want a bind-mounted directory, not a separate object-storage
   account; the `BlobStore` interface leaves room to add S3 later without
   forcing it on everyone now.
+- **Server-side encryption at rest** (SQLCipher, or a key held by the
+  backend). Rejected in favor of client-side E2E: if the backend holds
+  the key, "someone compromises the backend" is back on the table as a
+  way to read every note, which is exactly what R9 exists to rule out.
+  Client-side encryption is also less code overall — no server-side
+  crypto to write, key-manage, or rotate at all.
+- **Convergent encryption** (deterministic nonce from plaintext hash, to
+  preserve blob dedup). Rejected — see Blob storage: the
+  confirmation-of-file weakness it reintroduces isn't worth the disk
+  savings for this app's scale.
 
 ## Open questions
 
@@ -288,3 +373,8 @@ restructuring of code that already works.
 - Where the sync retry queue's state should live if the browser tab
   closes mid-retry (acceptable to lose and re-derive from local state on
   next load, most likely, but worth confirming against R2's expectations).
+- First-run key UX: does the app generate the key and prompt the user to
+  save it somewhere on first enabling encryption, or does the user
+  generate it themselves (e.g. `openssl rand`) and just point the app at
+  it? Generating it for them is friendlier; needs a very clear "save this
+  now, we're not keeping a copy" moment either way.
