@@ -19,7 +19,7 @@ decryption only happens client-side, and the server can't `GROUP BY` a
 column it can't read. Drawing the line at "is this the user's own words,
 or a category/number about it" keeps that possible without weakening
 R9's actual guarantee: an attacker who gets the DB still can't read what
-anyone actually studied, only that *some* card exists, was tagged with an
+anyone actually studied, only that _some_ card exists, was tagged with an
 opaque `tag_id`, and was answered right or wrong.
 
 ## Cards: one table, a `kind` discriminator
@@ -68,7 +68,7 @@ create table card_reviews (        -- append-only FSRS review history
 ```
 
 `front`/`back`/`graded_summary` are content — encrypted. `kind`,
-`fsrs_*`, `graded_correct`, `flagged` are metadata *about* content, not
+`fsrs_*`, `graded_correct`, `flagged` are metadata _about_ content, not
 content itself — plaintext, and that's exactly what makes the due-cards
 query (`where kind = 'question' and fsrs_due_at <= :now`) and the
 analytics ratios (`group by graded_correct`) possible as plain SQL.
@@ -76,7 +76,7 @@ analytics ratios (`group by graded_correct`) possible as plain SQL.
 ## Tags: normalized, referenced by opaque ID
 
 The grading spec produces 3 tags per question; the analytics page wants
-tag-frequency counts. If tag *names* were stored encrypted per-card
+tag-frequency counts. If tag _names_ were stored encrypted per-card
 (e.g. as an encrypted JSON array column), frequency counting would
 require decrypting every card's tags client-side and aggregating in JS —
 workable, but throws away SQL's actual job. Instead:
@@ -97,7 +97,7 @@ create table card_tags (
 
 The server aggregates by opaque `tag_id` (`select tag_id, count(*) from
 card_tags group by tag_id order by count(*) desc`) without ever knowing
-what a tag *means*; the client decrypts `name_ct` for the tags in that
+what a tag _means_; the client decrypts `name_ct` for the tags in that
 result set to render "quadratic-equations: 14" instead of "tag #42: 14".
 Same trick as the cards table: keep the thing SQL needs to group by
 plaintext, keep the thing a human reads encrypted.
@@ -123,10 +123,10 @@ query against tables that already exist — no separate pre-aggregated
   `src/lib/store.ts` — this just runs it over a longer history than "the
   current session").
 - Correct/incorrect ratio: `select graded_correct, count(*) from cards
-  where kind = 'question' group by graded_correct`.
+where kind = 'question' group by graded_correct`.
 - Tag frequency: the `card_tags` group-by above.
 - Review throughput: `select date(reviewed_at, 'unixepoch'), count(*)
-  from card_reviews group by 1`.
+from card_reviews group by 1`.
 
 Building a materialized rollup table now would be optimizing a query
 pattern that doesn't have a performance problem yet — a personal note

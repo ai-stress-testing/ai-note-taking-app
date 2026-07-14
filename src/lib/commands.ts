@@ -43,13 +43,13 @@ export const COMMANDS: CommandDef[] = [
   // ── Question workflow ───────────────────────────
   {
     name: "/question",
-    description: "Insert a Question template",
+    description: "Insert a Question template (4 empty choices)",
     ai: false,
     localHint: "tpl:question",
   },
   {
     name: "/part",
-    description: "Add a new Part to current question",
+    description: "Add a new lettered Part (4 empty choices) to current question",
     ai: false,
     localHint: "tpl:part",
   },

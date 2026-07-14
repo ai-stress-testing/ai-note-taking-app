@@ -34,7 +34,7 @@ see the other new specs) look over time.
   enabled, this page naturally sees everything synced to it, but no new
   aggregation logic is required on the backend side for that to work.
 - Exporting analytics data in a new format — the existing Download modal
-  already exports full session data; this page is a *view*, not a new
+  already exports full session data; this page is a _view_, not a new
   export path.
 - Goal-setting / streaks-with-notifications features. Just showing the
   data, not gamifying it.

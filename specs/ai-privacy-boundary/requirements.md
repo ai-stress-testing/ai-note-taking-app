@@ -11,15 +11,15 @@ Every AI-assisted feature in this app — `/help`, closing a `/math` or
 works by sending buffer content to the configured local AI server. That
 server is local (no cloud fallback exists in this app by design), but
 "local" isn't the same as "private from the user's own perspective on
-their own content": the app has no concept of *some* content being off
+their own content": the app has no concept of _some_ content being off
 limits to any AI call at all, even a local one. A user journaling
 something genuinely personal alongside their study notes currently has no
 way to guarantee that content never gets bundled into an AI prompt.
 
 This is a distinct concern from `specs/backend-persistence/`'s R9
 (end-to-end encryption at rest/in sync) — that spec protects content from
-a compromised *backend*; this one is about whether content is ever
-included in an outbound *AI request* in the first place. A file can be
+a compromised _backend_; this one is about whether content is ever
+included in an outbound _AI request_ in the first place. A file can be
 fully encrypted at rest and still get sent to Ollama in plaintext the
 moment a feature processes it, because AI processing requires decrypted
 content to work on. Encryption and AI-eligibility are two independent
@@ -45,8 +45,8 @@ axes, not the same guarantee twice.
   independent of R1-R3's per-file marking — it is never included in an
   AI request unless a specific future feature asks for it and the user
   has explicitly opted that feature in. This is stricter than the
-  file-level default (R3) on purpose: habit data describes the *user*,
-  not a note's *content*, and defaulting it to shared would be a
+  file-level default (R3) on purpose: habit data describes the _user_,
+  not a note's _content_, and defaulting it to shared would be a
   meaningfully different privacy posture than defaulting note content to
   shared.
 - R5. `/end`'s session summary currently sends raw counts and durations
@@ -72,7 +72,7 @@ axes, not the same guarantee twice.
 - Changing how encryption (`specs/backend-persistence/` R9) applies —
   personal and normal files are encrypted identically at rest; this spec
   only governs outbound AI calls.
-- A way to selectively opt a *specific* habit metric into AI use (R4) —
+- A way to selectively opt a _specific_ habit metric into AI use (R4) —
   "the user explicitly opts a feature in" is a per-feature, not
   per-metric, decision for now.
 

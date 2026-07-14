@@ -4,22 +4,22 @@
 
 Build **one** backend — SQLite for structured data, a content-addressed
 filesystem blob store for binary data, exposed as server routes on the
-*existing* TanStack Start app (no separate service) — and offer it through
+_existing_ TanStack Start app (no separate service) — and offer it through
 **two** optional distribution wrappers around that same code: a Docker
 image for self-hosting, and a Tauri desktop shell that runs the identical
 backend as a local sidecar with no network port at all. `localStorage`-only
 mode remains the default; nothing here changes behavior unless a user opts
 in.
 
-## Why "one backend, two wrappers" instead of picking Docker *or* Tauri
+## Why "one backend, two wrappers" instead of picking Docker _or_ Tauri
 
 The prompt asked to weigh a Tauri app against a Docker backend, but they
 aren't actually alternatives to each other — they answer different
 questions:
 
-- **Docker** answers "where does the persistence layer *run*?" (someone
+- **Docker** answers "where does the persistence layer _run_?" (someone
   else's/your own always-on machine, reachable over a network).
-- **Tauri** answers "how is the *client* distributed?" (a native binary
+- **Tauri** answers "how is the _client_ distributed?" (a native binary
   instead of a browser tab).
 
 A Tauri app still needs somewhere to persist data. If we wrote the backend
@@ -37,26 +37,26 @@ Instead: write the backend once, in the stack the project already uses
 - **Tauri distribution**: bundle the same Bun server as a sidecar binary
   inside the Tauri shell (Tauri's documented "sidecar" pattern for bundling
   an external process). The desktop app talks to `127.0.0.1:<ephemeral
-  port>` that nothing outside the OS process tree can reach — no auth
+port>` that nothing outside the OS process tree can reach — no auth
   token even strictly required in that mode, though we keep the same
   token check for code-path uniformity.
 
 One codebase, two ways to run it. A user picks Docker if they want
 cross-device sync reachable over their network; Tauri if they want a
 single native app with zero listening sockets and don't need multi-device
-sync (or want *both*: a Tauri app on the laptop pointed at a separately
+sync (or want _both_: a Tauri app on the laptop pointed at a separately
 hosted Docker backend for sync — the two aren't exclusive).
 
 ### Tradeoffs, made explicit
 
-| | Docker (self-hosted server) | Tauri (native desktop) |
-|---|---|---|
-| Reuses existing TS/Bun code | Yes, directly | Yes, via sidecar (no Rust rewrite) |
-| Multi-device sync | Yes — that's the point | Only if also pointed at a Docker backend |
-| Network attack surface | Real — a listening service that needs auth, TLS, binding discipline | None — no port reachable outside the OS |
-| Operational burden on the user | Must run/update a container, manage a volume | Just install an app; auto-update is the app's own concern |
-| New build/release pipeline | No — same container image regardless of client OS | Yes — per-OS bundles, code signing, Tauri toolchain in CI |
-| Fits "student/personal tool" audience | Only for the subset willing to self-host | Yes, closer to zero-setup |
+|                                       | Docker (self-hosted server)                                         | Tauri (native desktop)                                    |
+| ------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------- |
+| Reuses existing TS/Bun code           | Yes, directly                                                       | Yes, via sidecar (no Rust rewrite)                        |
+| Multi-device sync                     | Yes — that's the point                                              | Only if also pointed at a Docker backend                  |
+| Network attack surface                | Real — a listening service that needs auth, TLS, binding discipline | None — no port reachable outside the OS                   |
+| Operational burden on the user        | Must run/update a container, manage a volume                        | Just install an app; auto-update is the app's own concern |
+| New build/release pipeline            | No — same container image regardless of client OS                   | Yes — per-OS bundles, code signing, Tauri toolchain in CI |
+| Fits "student/personal tool" audience | Only for the subset willing to self-host                            | Yes, closer to zero-setup                                 |
 
 Recommendation: build the backend and Docker packaging first (it's the
 smaller lift and the thing multi-device sync actually requires). Treat
@@ -67,7 +67,7 @@ model has proven itself via Docker use.
 ## Data model (SQLite)
 
 Mirrors the existing Zustand `State` shape (`src/lib/store.ts`) closely on
-purpose — the sync layer's job is to keep two copies of *that* shape
+purpose — the sync layer's job is to keep two copies of _that_ shape
 consistent, not to invent a new one.
 
 ```sql
@@ -137,7 +137,7 @@ full-text-search or grep note content directly (R9 costs something: the
 server is intentionally blind to it) — any future search feature has to
 run client-side over decrypted content, not as a server-side query.
 "Blobs" here means genuinely binary, potentially-large content: canvas
-*snapshots* (a rendered PNG, if we add export-as-image later), exported
+_snapshots_ (a rendered PNG, if we add export-as-image later), exported
 bundle archives,
 and future pasted images/attachments — not the note text itself.
 
@@ -154,7 +154,7 @@ construction).
 
 One real cost of hashing ciphertext: AES-GCM's random-per-encryption
 nonce means encrypting the same plaintext twice produces different
-ciphertext, so this no longer dedups identical *plaintext* blobs (e.g.
+ciphertext, so this no longer dedups identical _plaintext_ blobs (e.g.
 the same image pasted into two notes) the way pure content-addressing
 normally would. The alternative — a deterministic nonce derived from the
 plaintext's own hash ("convergent encryption") — would restore dedup but
@@ -218,7 +218,7 @@ Last-write-wins by `updated_at`, matching the field the store already
 tracks on every file/folder. On the client:
 
 1. On app load (if backend configured and reachable): `GET
-   /api/workspace`, merge into local Zustand state — for each entity, keep
+/api/workspace`, merge into local Zustand state — for each entity, keep
    whichever side has the newer `updated_at`.
 2. On every local mutation: apply optimistically to local state
    immediately (today's UX, unchanged), then fire-and-forget the
@@ -302,11 +302,11 @@ rather than picking one silently:
    key file each session. Strongest posture — the key is never at rest
    anywhere in the browser.
 2. **Remembered on this device (opt-in)**: import the key as
-   *non-extractable* and store the `CryptoKey` handle in IndexedDB.
+   _non-extractable_ and store the `CryptoKey` handle in IndexedDB.
    Non-extractable means the JS runtime can use it to encrypt/decrypt but
    can never read the raw bytes back out — a real browser security
    primitive, not obfuscation. Trades a small amount of theoretical
-   attack surface (a compromised browser profile could still *use* the
+   attack surface (a compromised browser profile could still _use_ the
    key via the page's own JS) for not re-uploading a file every reload.
 
 Default to (1). Offer (2) as an explicit opt-in, not the default — matches
@@ -315,7 +315,7 @@ user asks for convenience.
 
 **What's encrypted.** File `content`, file/folder `name`, canvas
 `strokes_json`, and all blob bytes — i.e. everything that's actually
-*about* what the user wrote, not the scaffolding around it. Each field is
+_about_ what the user wrote, not the scaffolding around it. Each field is
 encrypted independently with a fresh random 96-bit nonce (AES-GCM
 requires a unique nonce per encryption under the same key); the nonce
 travels alongside the ciphertext in the same column/blob since it isn't
@@ -325,8 +325,8 @@ garbage collection without ever needing to decrypt anything.
 
 **What this buys, and what it doesn't.** A compromised or malicious
 server operator (including "someone roots the box the Docker container
-runs on") gets ciphertext, not notes. It does *not* protect against a
-compromised *client* (the browser tab has the key in memory while
+runs on") gets ciphertext, not notes. It does _not_ protect against a
+compromised _client_ (the browser tab has the key in memory while
 you're using it, by necessity) — that's an inherent property of
 client-side encryption, not a gap in this design.
 
@@ -347,7 +347,7 @@ client-side encryption, not a gap in this design.
   and building/maintaining a CRDT layer is a large, ongoing cost that
   isn't justified by "sync my own two devices."
 - **S3-only blob storage** (no local filesystem option). Rejected as the
-  *only* option for v1 — most self-hosters running a single Docker
+  _only_ option for v1 — most self-hosters running a single Docker
   container want a bind-mounted directory, not a separate object-storage
   account; the `BlobStore` interface leaves room to add S3 later without
   forcing it on everyone now.

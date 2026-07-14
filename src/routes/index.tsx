@@ -236,21 +236,25 @@ function Editor() {
         switch (cmd.localHint) {
           case "tpl:question": {
             incSessionCount("questions");
-            const tpl =
-              `── Question ──────────────────────────────────────\n` +
-              `Q: ${args || ""}\n` +
-              `Part: \n\n` +
-              `Stream of consciousness:\n` +
-              `  \n`;
-            const caretOffset =
-              `── Question ──────────────────────────────────────\nQ: ${args || ""}`.length;
-            insertAtRange(lineStart, lineEnd, tpl, args ? undefined : caretOffset);
+            const header = `── Question ──────────────────────────────────────\nQ: ${args || ""}\n`;
+            const partHeader = `Part a:\n`;
+            const choices = choiceLines();
+            const tpl = header + partHeader + choices;
+            // No question text yet: land right after "Q: " to type it.
+            // Question text given: land in the first choice bracket to fill answers.
+            const caretOffset = args
+              ? (header + partHeader + FIRST_CHOICE_PREFIX).length
+              : header.length - 1;
+            insertAtRange(lineStart, lineEnd, tpl, caretOffset);
             return;
           }
           case "tpl:part": {
-            const tpl = `\nPart: ${args || ""}\n\nStream of consciousness:\n  \n`;
-            const caretOffset = `\nPart: ${args || ""}`.length;
-            insertAtRange(lineStart, lineEnd, tpl, args ? undefined : caretOffset);
+            const buffer = useStore.getState().files[activeFileId]?.content ?? "";
+            const letter = nextPartLetter(buffer, lineStart);
+            const header = `\nPart ${letter}: ${args || ""}\n`;
+            const choices = choiceLines();
+            const tpl = header + choices;
+            insertAtRange(lineStart, lineEnd, tpl, header.length + FIRST_CHOICE_PREFIX.length);
             return;
           }
           case "tpl:calc":
@@ -833,6 +837,28 @@ function renderHighlighted(content: string): React.ReactNode {
       </span>
     );
   });
+}
+
+// ── Question / part / choices ──────────────────────────
+// A card is 1 question + 1 part + 1-or-more choices, with the correct
+// answer(s) marked directly as `[x]` among the choices — no separate
+// "answer" field to keep in sync with what's checked.
+const FIRST_CHOICE_PREFIX = "  [ ] ";
+
+function choiceLines(n = 4): string {
+  return Array.from({ length: n }, () => `${FIRST_CHOICE_PREFIX}\n`).join("");
+}
+
+function partLetter(index: number): string {
+  return String.fromCharCode(97 + index);
+}
+
+/** How many parts already exist in the Question block enclosing `pos`. */
+function nextPartLetter(buffer: string, pos: number): string {
+  const startIdx = buffer.lastIndexOf("── Question ", pos);
+  if (startIdx === -1) return partLetter(0);
+  const existing = buffer.slice(startIdx, pos).match(/\nPart [a-z]:/g) ?? [];
+  return partLetter(existing.length);
 }
 
 function renderBlock(cmd: string, source: string, body: string): string {
