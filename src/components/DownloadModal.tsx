@@ -44,12 +44,18 @@ export function DownloadModal({ open, onClose }: { open: boolean; onClose: () =>
         sessionEvents,
         sessionCounts,
       };
-      download(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }), `neurovim-${ts}.json`);
+      download(
+        new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }),
+        `neurovim-${ts}.json`,
+      );
     } else if (format === "md-bundle") {
       const parts = folders.map((folder) => {
         const items = Object.values(files).filter((f) => f.folderId === folder.id);
         const body = items
-          .map((f) => `\n\n<!-- ${f.name} · ${new Date(f.updatedAt).toISOString()} -->\n\n${f.content}`)
+          .map(
+            (f) =>
+              `\n\n<!-- ${f.name} · ${new Date(f.updatedAt).toISOString()} -->\n\n${f.content}`,
+          )
           .join("\n\n---\n");
         return `# ${folder.name}\n${body || "\n_(empty)_\n"}`;
       });
@@ -70,36 +76,57 @@ export function DownloadModal({ open, onClose }: { open: boolean; onClose: () =>
       <div className="ed-modal" onClick={(e) => e.stopPropagation()}>
         <div className="ed-modal-header">
           <span className="ed-modal-title">⇩ download workspace</span>
-          <button className="ed-modal-x" onClick={onClose}>×</button>
+          <button className="ed-modal-x" onClick={onClose}>
+            ×
+          </button>
         </div>
         <div className="ed-modal-body">
           <p className="ed-modal-lede">
-            {fileCount} file{fileCount === 1 ? "" : "s"} across {folders.length} folder{folders.length === 1 ? "" : "s"}.
+            {fileCount} file{fileCount === 1 ? "" : "s"} across {folders.length} folder
+            {folders.length === 1 ? "" : "s"}.
           </p>
           <div className="ed-modal-warn">
-            ⚠ Ollama required. This bundle ships without cloud AI — /help and /end
-            need a local <code>ollama serve</code> to work.
+            ⚠ Ollama required. This bundle ships without cloud AI — /help and /end need a local{" "}
+            <code>ollama serve</code> to work.
           </div>
 
-
           <label className={`ed-modal-opt ${format === "json" ? "active" : ""}`}>
-            <input type="radio" name="fmt" checked={format === "json"} onChange={() => setFormat("json")} />
+            <input
+              type="radio"
+              name="fmt"
+              checked={format === "json"}
+              onChange={() => setFormat("json")}
+            />
             <div>
               <div className="ed-opt-title">Full workspace · JSON</div>
-              <div className="ed-opt-desc">Everything: files, folders, session log. Re-importable snapshot.</div>
+              <div className="ed-opt-desc">
+                Everything: files, folders, session log. Re-importable snapshot.
+              </div>
             </div>
           </label>
 
           <label className={`ed-modal-opt ${format === "md-bundle" ? "active" : ""}`}>
-            <input type="radio" name="fmt" checked={format === "md-bundle"} onChange={() => setFormat("md-bundle")} />
+            <input
+              type="radio"
+              name="fmt"
+              checked={format === "md-bundle"}
+              onChange={() => setFormat("md-bundle")}
+            />
             <div>
               <div className="ed-opt-title">All files · Markdown bundle</div>
-              <div className="ed-opt-desc">Concatenated .md grouped by folder. Great for archiving.</div>
+              <div className="ed-opt-desc">
+                Concatenated .md grouped by folder. Great for archiving.
+              </div>
             </div>
           </label>
 
           <label className={`ed-modal-opt ${format === "current" ? "active" : ""}`}>
-            <input type="radio" name="fmt" checked={format === "current"} onChange={() => setFormat("current")} />
+            <input
+              type="radio"
+              name="fmt"
+              checked={format === "current"}
+              onChange={() => setFormat("current")}
+            />
             <div>
               <div className="ed-opt-title">Current file only · {activeFile?.name ?? "—"}</div>
               <div className="ed-opt-desc">The file open in the focused pane.</div>
@@ -107,8 +134,12 @@ export function DownloadModal({ open, onClose }: { open: boolean; onClose: () =>
           </label>
         </div>
         <div className="ed-modal-footer">
-          <button className="ed-btn ghost" onClick={onClose}>cancel</button>
-          <button className="ed-btn primary" onClick={handleDownload}>download</button>
+          <button className="ed-btn ghost" onClick={onClose}>
+            cancel
+          </button>
+          <button className="ed-btn primary" onClick={handleDownload}>
+            download
+          </button>
         </div>
       </div>
     </div>

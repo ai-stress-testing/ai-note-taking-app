@@ -49,7 +49,13 @@ export async function runAi(opts: {
   const genCtrl = new AbortController();
   const genTimer = setTimeout(() => genCtrl.abort(), 60000);
   try {
-    const text = await tryOllama(opts.ollamaUrl, opts.ollamaModel, opts.system, opts.prompt, genCtrl.signal);
+    const text = await tryOllama(
+      opts.ollamaUrl,
+      opts.ollamaModel,
+      opts.system,
+      opts.prompt,
+      genCtrl.signal,
+    );
     return { text, source: "ollama" };
   } finally {
     clearTimeout(genTimer);

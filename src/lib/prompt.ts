@@ -14,17 +14,21 @@ export function sanitizeForPrompt(input: string, maxLen = 4000): string {
   if (!input) return "";
   let s = input;
   // Strip control chars except tab / LF.
+  // eslint-disable-next-line no-control-regex -- intentional: stripping control chars is the point.
   s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
   // Strip zero-width / bidi override chars often used to smuggle instructions.
   s = s.replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "");
   // Neutralize triple backticks so we can safely wrap in a fence.
   s = s.replace(/```/g, "``\u200B`");
   // Line-level filter for classic prompt-injection openers.
-  const INJECT = /^\s*(please\s+)?(ignore|disregard|forget)\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?)/i;
+  const INJECT =
+    /^\s*(please\s+)?(ignore|disregard|forget)\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?)/i;
   const ROLE = /^\s*(system|assistant)\s*[:>]/i;
   s = s
     .split("\n")
-    .map((line) => (INJECT.test(line) || ROLE.test(line) ? `[filtered] ${line.slice(0, 80)}` : line))
+    .map((line) =>
+      INJECT.test(line) || ROLE.test(line) ? `[filtered] ${line.slice(0, 80)}` : line,
+    )
     .join("\n");
   // Clamp length; keep the tail (most recent thought) rather than the head.
   if (s.length > maxLen) s = "…\n" + s.slice(s.length - maxLen);

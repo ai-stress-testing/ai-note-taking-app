@@ -4,10 +4,18 @@ import { toast } from "sonner";
 
 export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
   const {
-    folders, files, activeFolderId,
-    setActiveFolder, createFile, deleteFile, renameFile,
-    openFileInPane, focusedPane, panes,
-    sidebarOpen, toggleSidebar,
+    folders,
+    files,
+    activeFolderId,
+    setActiveFolder,
+    createFile,
+    deleteFile,
+    renameFile,
+    openFileInPane,
+    focusedPane,
+    panes,
+    sidebarOpen,
+    toggleSidebar,
   } = useStore();
 
   const fileList = useMemo(
@@ -21,7 +29,9 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
   if (!sidebarOpen) {
     return (
       <div className="ed-side collapsed">
-        <button className="ed-side-toggle-mini" onClick={toggleSidebar} title="Show sidebar">›</button>
+        <button className="ed-side-toggle-mini" onClick={toggleSidebar} title="Show sidebar">
+          ›
+        </button>
       </div>
     );
   }
@@ -90,7 +100,9 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
               >
                 <span className="ed-side-file-icon">≡</span>
                 <span className="ed-side-file-name">{f.name}</span>
-                <span className="ed-side-file-meta" suppressHydrationWarning>{fmtClock(f.updatedAt)}</span>
+                <span className="ed-side-file-meta" suppressHydrationWarning>
+                  {fmtClock(f.updatedAt)}
+                </span>
                 <button
                   className="ed-side-file-x"
                   title="Delete file"

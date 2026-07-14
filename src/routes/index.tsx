@@ -1,11 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  useStore,
-  computeSessionStats,
-  fmtDuration,
-  fmtClock,
-} from "@/lib/store";
+import { useStore, computeSessionStats, fmtDuration, fmtClock } from "@/lib/store";
 import { COMMANDS, findCommand, type CommandDef, END_SESSION_SYSTEM_EXPORT } from "@/lib/commands";
 import { runAi } from "@/lib/ai-client";
 import { getCaretCoords } from "@/lib/caret";
@@ -41,21 +36,48 @@ type SlashState = {
   selected: number;
 };
 
-const CLOSED: SlashState = { open: false, query: "", startIdx: -1, x: 0, y: 0, lineHeight: 0, selected: 0 };
+const CLOSED: SlashState = {
+  open: false,
+  query: "",
+  startIdx: -1,
+  x: 0,
+  y: 0,
+  lineHeight: 0,
+  selected: 0,
+};
 
 function Editor() {
   const {
-    files, folders, activeFolderId,
-    panes, focusedPane,
-    setPanes, setFocusedPane, closePane, openFileInPane, createFile,
+    files,
+    folders,
+    activeFolderId,
+    panes,
+    focusedPane,
+    setPanes,
+    setFocusedPane,
+    closePane,
+    openFileInPane,
+    createFile,
     setContent,
-    aiStatus, aiSource, setAiStatus,
-    ollamaEnabled, ollamaUrl, ollamaModel,
-    logSession, incSessionCount, resetSession,
-    sessionEvents, sessionCounts,
-    sidebarOpen, toggleSidebar,
-    fileSearch, setFileSearch,
-    canvases, addCanvas, setCanvas, deleteCanvas,
+    aiStatus,
+    aiSource,
+    setAiStatus,
+    ollamaEnabled,
+    ollamaUrl,
+    ollamaModel,
+    logSession,
+    incSessionCount,
+    resetSession,
+    sessionEvents,
+    sessionCounts,
+    sidebarOpen,
+    toggleSidebar,
+    fileSearch,
+    setFileSearch,
+    canvases,
+    addCanvas,
+    setCanvas,
+    deleteCanvas,
   } = useStore();
 
   const [hydrated, setHydrated] = useState(false);
@@ -83,7 +105,9 @@ function Editor() {
     () =>
       Object.values(files)
         .filter((f) => f.folderId === activeFolderId)
-        .filter((f) => (fileSearch ? f.name.toLowerCase().includes(fileSearch.toLowerCase()) : true))
+        .filter((f) =>
+          fileSearch ? f.name.toLowerCase().includes(fileSearch.toLowerCase()) : true,
+        )
         .sort((a, b) => b.updatedAt - a.updatedAt),
     [files, activeFolderId, fileSearch],
   );
@@ -160,7 +184,9 @@ function Editor() {
           prompt: `Session buffer:\n${bufferContent}\n\nCounts: ${JSON.stringify(counts)}\nDurations: worked=${fmtDuration(
             stats.workMs,
           )}, break=${fmtDuration(stats.breakMs)}, avg=${fmtDuration(stats.avgWorkMs)}`,
-          ollamaEnabled, ollamaUrl, ollamaModel,
+          ollamaEnabled,
+          ollamaUrl,
+          ollamaModel,
         });
         const parsed = safeJson(text);
         const filled =
@@ -191,7 +217,17 @@ function Editor() {
         }
       }
     },
-    [activeFileId, insertAtRange, logSession, resetSession, setAiStatus, setContent, ollamaEnabled, ollamaUrl, ollamaModel],
+    [
+      activeFileId,
+      insertAtRange,
+      logSession,
+      resetSession,
+      setAiStatus,
+      setContent,
+      ollamaEnabled,
+      ollamaUrl,
+      ollamaModel,
+    ],
   );
 
   const executeCommand = useCallback(
@@ -206,7 +242,8 @@ function Editor() {
               `Part: \n\n` +
               `Stream of consciousness:\n` +
               `  \n`;
-            const caretOffset = `── Question ──────────────────────────────────────\nQ: ${args || ""}`.length;
+            const caretOffset =
+              `── Question ──────────────────────────────────────\nQ: ${args || ""}`.length;
             insertAtRange(lineStart, lineEnd, tpl, args ? undefined : caretOffset);
             return;
           }
@@ -216,14 +253,22 @@ function Editor() {
             insertAtRange(lineStart, lineEnd, tpl, args ? undefined : caretOffset);
             return;
           }
-          case "tpl:calc": insertAtRange(lineStart, lineEnd, `> `); return;
+          case "tpl:calc":
+            insertAtRange(lineStart, lineEnd, `> `);
+            return;
           case "tpl:math": {
             const text = `$ ${args || ""} $`;
             const caretOffset = args ? text.length : 2;
             insertAtRange(lineStart, lineEnd, text, caretOffset);
             return;
           }
-          case "tpl:close": insertAtRange(lineStart, lineEnd, `──────────────────────────────────────────────────\n\n`); return;
+          case "tpl:close":
+            insertAtRange(
+              lineStart,
+              lineEnd,
+              `──────────────────────────────────────────────────\n\n`,
+            );
+            return;
           case "tpl:vocab": {
             incSessionCount("vocab");
             const tpl = `── Vocab ─────────────────────────────────────────\n  term:       ${args || ""}\n  definition: \n  example:    \n`;
@@ -240,14 +285,33 @@ function Editor() {
             insertAtRange(lineStart, lineEnd, tpl);
             return;
           }
-          case "session:start":  { const e = logSession("start");  insertAtRange(lineStart, lineEnd, `[start ${fmtClock(e.at)}]\n`);  return; }
-          case "session:break":  { const e = logSession("break");  insertAtRange(lineStart, lineEnd, `[break ${fmtClock(e.at)}]\n`);  return; }
-          case "session:resume": { const e = logSession("resume"); insertAtRange(lineStart, lineEnd, `[resume ${fmtClock(e.at)}]\n`); return; }
-          case "session:end":    { await runEndSession(lineStart, lineEnd); return; }
+          case "session:start": {
+            const e = logSession("start");
+            insertAtRange(lineStart, lineEnd, `[start ${fmtClock(e.at)}]\n`);
+            return;
+          }
+          case "session:break": {
+            const e = logSession("break");
+            insertAtRange(lineStart, lineEnd, `[break ${fmtClock(e.at)}]\n`);
+            return;
+          }
+          case "session:resume": {
+            const e = logSession("resume");
+            insertAtRange(lineStart, lineEnd, `[resume ${fmtClock(e.at)}]\n`);
+            return;
+          }
+          case "session:end": {
+            await runEndSession(lineStart, lineEnd);
+            return;
+          }
 
           case "layout:split": {
             const cur = useStore.getState().panes;
-            if (cur.length >= 4) { toast.error("Max 4 panes"); insertAtRange(lineStart, lineEnd, ""); return; }
+            if (cur.length >= 4) {
+              toast.error("Max 4 panes");
+              insertAtRange(lineStart, lineEnd, "");
+              return;
+            }
             setPanes([...cur, cur[cur.length - 1] ?? Object.keys(useStore.getState().files)[0]]);
             insertAtRange(lineStart, lineEnd, "");
             return;
@@ -260,14 +324,21 @@ function Editor() {
             return;
           }
 
-
-          case "export": { setDownloadOpen(true); insertAtRange(lineStart, lineEnd, ""); return; }
+          case "export": {
+            setDownloadOpen(true);
+            insertAtRange(lineStart, lineEnd, "");
+            return;
+          }
           case "export-md": {
             const cur = useStore.getState().files[activeFileId];
             if (!cur) return;
             const blob = new Blob([cur.content], { type: "text/markdown" });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = cur.name; a.click(); URL.revokeObjectURL(url);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = cur.name;
+            a.click();
+            URL.revokeObjectURL(url);
             toast.success(`Exported ${cur.name}`);
             insertAtRange(lineStart, lineEnd, "");
             return;
@@ -297,9 +368,15 @@ function Editor() {
             : nearby
               ? "```notes\n" + nearby + "\n```\n\n"
               : "") +
-          "```focus\n" + (focus || "(no explicit focus — nudge based on the notes above)") + "\n```";
+          "```focus\n" +
+          (focus || "(no explicit focus — nudge based on the notes above)") +
+          "\n```";
       } else if (cmd.buildPrompt) {
-        prompt = cmd.buildPrompt({ args, buffer: active?.content ?? "", archetype: activeFolder?.name ?? "file" });
+        prompt = cmd.buildPrompt({
+          args,
+          buffer: active?.content ?? "",
+          archetype: activeFolder?.name ?? "file",
+        });
       } else {
         prompt = args || (active?.content ?? "");
       }
@@ -315,11 +392,16 @@ function Editor() {
         const { text, source } = await runAi({
           system: cmd.system!,
           prompt,
-          ollamaEnabled, ollamaUrl, ollamaModel,
+          ollamaEnabled,
+          ollamaUrl,
+          ollamaModel,
         });
         const block = renderBlock(cmd.name, source, text);
         const cur = useStore.getState().files[activeFileId]?.content ?? "";
-        setContent(activeFileId, cur.slice(0, placeholderStart) + block + cur.slice(placeholderEnd));
+        setContent(
+          activeFileId,
+          cur.slice(0, placeholderStart) + block + cur.slice(placeholderEnd),
+        );
         setAiStatus("ok", source);
         toast.success(`${cmd.name} · ${source}`, { id: toastId });
       } catch (e) {
@@ -335,12 +417,30 @@ function Editor() {
           // Non-connectivity error: leave a visible failure marker in the buffer.
           const errBlock = renderBlock(cmd.name, "err", `Error: ${msg}`);
           const cur2 = useStore.getState().files[activeFileId]?.content ?? "";
-          setContent(activeFileId, cur2.slice(0, placeholderStart) + errBlock + cur2.slice(placeholderStart));
+          setContent(
+            activeFileId,
+            cur2.slice(0, placeholderStart) + errBlock + cur2.slice(placeholderStart),
+          );
           toast.error(`${cmd.name} failed`);
         }
       }
     },
-    [activeFileId, active, activeFolder, focusedPane, ollamaEnabled, ollamaUrl, ollamaModel, insertAtRange, setContent, setAiStatus, setPanes, incSessionCount, logSession, runEndSession],
+    [
+      activeFileId,
+      active,
+      activeFolder,
+      focusedPane,
+      ollamaEnabled,
+      ollamaUrl,
+      ollamaModel,
+      insertAtRange,
+      setContent,
+      setAiStatus,
+      setPanes,
+      incSessionCount,
+      logSession,
+      runEndSession,
+    ],
   );
 
   const commitCompletion = useCallback(
@@ -364,9 +464,21 @@ function Editor() {
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (slash.open) {
-        if (e.key === "ArrowDown") { e.preventDefault(); setSlash((s) => ({ ...s, selected: Math.min(s.selected + 1, filteredCmds.length - 1) })); return; }
-        if (e.key === "ArrowUp")   { e.preventDefault(); setSlash((s) => ({ ...s, selected: Math.max(s.selected - 1, 0) })); return; }
-        if (e.key === "Escape")    { e.preventDefault(); setSlash(CLOSED); return; }
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setSlash((s) => ({ ...s, selected: Math.min(s.selected + 1, filteredCmds.length - 1) }));
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setSlash((s) => ({ ...s, selected: Math.max(s.selected - 1, 0) }));
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setSlash(CLOSED);
+          return;
+        }
         if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
           e.preventDefault();
           const cmd = filteredCmds[slash.selected];
@@ -431,10 +543,7 @@ function Editor() {
 
   const gridStyle = paneGrid(panes.length);
 
-  const liveStats = useMemo(
-    () => computeSessionStats(sessionEvents, Date.now()),
-    [sessionEvents],
-  );
+  const liveStats = useMemo(() => computeSessionStats(sessionEvents, Date.now()), [sessionEvents]);
 
   return (
     <div className={`ed-app ${sidebarOpen ? "with-side" : "no-side"}`}>
@@ -490,10 +599,18 @@ function Editor() {
 
           <div className="ed-header-right">
             <span className="ed-header-meta">panes {panes.length}/4</span>
-            <button className="ed-header-dl" onClick={() => setSettingsOpen(true)} title="Settings (Ollama)">
+            <button
+              className="ed-header-dl"
+              onClick={() => setSettingsOpen(true)}
+              title="Settings (Ollama)"
+            >
               ⚙
             </button>
-            <button className="ed-header-dl" onClick={() => setDownloadOpen(true)} title="Download workspace">
+            <button
+              className="ed-header-dl"
+              onClick={() => setDownloadOpen(true)}
+              title="Download workspace"
+            >
               ⇩
             </button>
           </div>
@@ -524,24 +641,34 @@ function Editor() {
                     <button
                       type="button"
                       className="ed-pane-close"
-                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); closePane(i); }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        closePane(i);
+                      }}
                       aria-label="Close pane"
                       title="Close pane"
-                    >×</button>
+                    >
+                      ×
+                    </button>
                   )}
                 </div>
                 <div className="ed-editor-area">
                   <div className="ed-editor-scroll">
                     <div className="ed-mirror-wrap">
                       <pre
-                        ref={(el) => { mirrorRefs.current[i] = el; }}
+                        ref={(el) => {
+                          mirrorRefs.current[i] = el;
+                        }}
                         className="ed-mirror"
                         aria-hidden
                       >
                         {hydrated ? renderHighlighted(b.content) : null}
                       </pre>
                       <textarea
-                        ref={(el) => { textareaRefs.current[i] = el; }}
+                        ref={(el) => {
+                          textareaRefs.current[i] = el;
+                        }}
                         className="ed-textarea overlay"
                         value={hydrated ? b.content : ""}
                         onChange={(e) => onChange(i, e)}
@@ -593,15 +720,19 @@ function Editor() {
         <div className="ed-status" role="status">
           <div className="ed-status-mode">NORMAL</div>
           <div className="ed-status-seg">{active?.name ?? "—"}</div>
-          <div className="ed-status-seg">Q:{sessionCounts.questions} V:{sessionCounts.vocab}</div>
-          <div className="ed-status-seg">work {fmtDuration(liveStats.workMs)} · break {fmtDuration(liveStats.breakMs)}</div>
+          <div className="ed-status-seg">
+            Q:{sessionCounts.questions} V:{sessionCounts.vocab}
+          </div>
+          <div className="ed-status-seg">
+            work {fmtDuration(liveStats.workMs)} · break {fmtDuration(liveStats.breakMs)}
+          </div>
           <div className="ed-status-spacer" />
           <div className={`ed-status-ai ${aiStatus}`} aria-live="polite">
             <span className="dot" />
             {aiStatus === "busy" && "AI · thinking…"}
             {aiStatus === "idle" && "AI · idle"}
-            {aiStatus === "ok"   && `AI · ok (${aiSource})`}
-            {aiStatus === "err"  && "AI · error"}
+            {aiStatus === "ok" && `AI · ok (${aiSource})`}
+            {aiStatus === "err" && "AI · error"}
           </div>
           <div className="ed-status-seg">{ollamaEnabled ? `ollama:${ollamaModel}` : "cloud"}</div>
         </div>
@@ -613,7 +744,10 @@ function Editor() {
         open={ollamaAlert !== null}
         message={ollamaAlert ?? ""}
         onClose={() => setOllamaAlert(null)}
-        onOpenSettings={() => { setOllamaAlert(null); setSettingsOpen(true); }}
+        onOpenSettings={() => {
+          setOllamaAlert(null);
+          setSettingsOpen(true);
+        }}
       />
     </div>
   );
@@ -621,16 +755,36 @@ function Editor() {
 
 function paneGrid(n: number): React.CSSProperties {
   switch (n) {
-    case 1: return { gridTemplateColumns: "1fr", gridTemplateRows: "1fr", gridTemplateAreas: `"a"` };
-    case 2: return { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr", gridTemplateAreas: `"a b"` };
-    case 3: return { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gridTemplateAreas: `"a b" "a c"` };
-    case 4: return { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gridTemplateAreas: `"a b" "c d"` };
-    default: return { gridTemplateColumns: "1fr", gridTemplateRows: "1fr" };
+    case 1:
+      return { gridTemplateColumns: "1fr", gridTemplateRows: "1fr", gridTemplateAreas: `"a"` };
+    case 2:
+      return {
+        gridTemplateColumns: "1fr 1fr",
+        gridTemplateRows: "1fr",
+        gridTemplateAreas: `"a b"`,
+      };
+    case 3:
+      return {
+        gridTemplateColumns: "1fr 1fr",
+        gridTemplateRows: "1fr 1fr",
+        gridTemplateAreas: `"a b" "a c"`,
+      };
+    case 4:
+      return {
+        gridTemplateColumns: "1fr 1fr",
+        gridTemplateRows: "1fr 1fr",
+        gridTemplateAreas: `"a b" "c d"`,
+      };
+    default:
+      return { gridTemplateColumns: "1fr", gridTemplateRows: "1fr" };
   }
 }
 function paneAreaFor(count: number, i: number): string | null {
   const map: Record<number, string[]> = {
-    1: ["a"], 2: ["a", "b"], 3: ["a", "b", "c"], 4: ["a", "b", "c", "d"],
+    1: ["a"],
+    2: ["a", "b"],
+    3: ["a", "b", "c"],
+    4: ["a", "b", "c", "d"],
   };
   return map[count]?.[i] ?? null;
 }
@@ -638,7 +792,11 @@ function paneAreaFor(count: number, i: number): string | null {
 function safeJson(text: string): { title?: string; summary?: string; tags?: string[] } | null {
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) return null;
-  try { return JSON.parse(m[0]); } catch { return null; }
+  try {
+    return JSON.parse(m[0]);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -655,26 +813,46 @@ function renderHighlighted(content: string): React.ReactNode {
       const isHead = /^» \/[a-zA-Z-]+\s+─\s+/.test(line);
       return (
         <span key={i} className={isHead ? "ai-head" : "ai-line"}>
-          {line}{nl}
+          {line}
+          {nl}
         </span>
       );
     }
     if (line.startsWith("── ") || line.startsWith("──────────")) {
-      return <span key={i} className="rule">{line}{nl}</span>;
+      return (
+        <span key={i} className="rule">
+          {line}
+          {nl}
+        </span>
+      );
     }
-    return <span key={i}>{line}{nl}</span>;
+    return (
+      <span key={i}>
+        {line}
+        {nl}
+      </span>
+    );
   });
 }
 
 function renderBlock(cmd: string, source: string, body: string): string {
-  const indented = body.split("\n").map((l) => `» ${l}`).join("\n");
+  const indented = body
+    .split("\n")
+    .map((l) => `» ${l}`)
+    .join("\n");
   return `» ${cmd}  ─  ${source}\n${indented}\n\n`;
 }
 
 function SlashMenu({
-  x, y, items, selected, onPick, onHover,
+  x,
+  y,
+  items,
+  selected,
+  onPick,
+  onHover,
 }: {
-  x: number; y: number;
+  x: number;
+  y: number;
   items: CommandDef[];
   selected: number;
   onPick: (c: CommandDef) => void;
@@ -687,7 +865,10 @@ function SlashMenu({
           key={c.name}
           className={`ed-slash-item ${i === selected ? "active" : ""}`}
           onMouseEnter={() => onHover(i)}
-          onMouseDown={(e) => { e.preventDefault(); onPick(c); }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onPick(c);
+          }}
         >
           <span className="k">{c.name}</span>
           <span className="d">{c.description}</span>

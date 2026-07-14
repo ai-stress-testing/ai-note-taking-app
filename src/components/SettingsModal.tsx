@@ -12,7 +12,10 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
 
   if (!open) return null;
 
-  const isHosted = typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
+  const isHosted =
+    typeof window !== "undefined" &&
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1";
 
   const test = async () => {
     setTesting(true);
@@ -51,16 +54,22 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
       <div className="ed-modal" onClick={(e) => e.stopPropagation()}>
         <div className="ed-modal-header">
           <span className="ed-modal-title">⚙ settings · ollama</span>
-          <button className="ed-modal-x" onClick={onClose}>×</button>
+          <button className="ed-modal-x" onClick={onClose}>
+            ×
+          </button>
         </div>
         <div className="ed-modal-body">
           {isHosted && (
             <div className="ed-modal-info">
-              You're on a hosted instance. Your browser will connect directly to the URL
-              below, so it must be reachable from this page. For a local Ollama, start it with
-              CORS allowed for this origin:
+              You're on a hosted instance. Your browser will connect directly to the URL below, so
+              it must be reachable from this page. For a local Ollama, start it with CORS allowed
+              for this origin:
               <br />
-              <code>OLLAMA_ORIGINS="{typeof window !== "undefined" ? window.location.origin : "https://your-app"}" ollama serve</code>
+              <code>
+                OLLAMA_ORIGINS="
+                {typeof window !== "undefined" ? window.location.origin : "https://your-app"}"
+                ollama serve
+              </code>
             </div>
           )}
 
@@ -73,7 +82,10 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
               placeholder="http://localhost:11434"
               spellCheck={false}
             />
-            <span className="ed-field-hint">Default: <code>http://localhost:11434</code>. For a remote box use <code>http://your-host:11434</code> or a tunnel URL.</span>
+            <span className="ed-field-hint">
+              Default: <code>http://localhost:11434</code>. For a remote box use{" "}
+              <code>http://your-host:11434</code> or a tunnel URL.
+            </span>
           </label>
 
           <label className="ed-field">
@@ -85,11 +97,17 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
               placeholder="llama3.2"
               spellCheck={false}
             />
-            <span className="ed-field-hint">Any model you have pulled. Pull one with <code>ollama pull llama3.2</code>.</span>
+            <span className="ed-field-hint">
+              Any model you have pulled. Pull one with <code>ollama pull llama3.2</code>.
+            </span>
           </label>
 
           <label className="ed-field-inline">
-            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+            />
             <span>AI enabled (Ollama-only — no cloud fallback ships with this app)</span>
           </label>
 
@@ -98,13 +116,19 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
               {testing ? "testing…" : "test connection"}
             </button>
             {testResult && (
-              <span className={`ed-test-result ${testResult.ok ? "ok" : "err"}`}>{testResult.msg}</span>
+              <span className={`ed-test-result ${testResult.ok ? "ok" : "err"}`}>
+                {testResult.msg}
+              </span>
             )}
           </div>
         </div>
         <div className="ed-modal-footer">
-          <button className="ed-btn ghost" onClick={onClose}>cancel</button>
-          <button className="ed-btn primary" onClick={save}>save</button>
+          <button className="ed-btn ghost" onClick={onClose}>
+            cancel
+          </button>
+          <button className="ed-btn primary" onClick={save}>
+            save
+          </button>
         </div>
       </div>
     </div>
