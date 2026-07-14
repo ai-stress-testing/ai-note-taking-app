@@ -2,11 +2,17 @@ import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 
+const PRESETS = [
+  { label: "Ollama", url: "http://localhost:11434/v1", model: "llama3.2" },
+  { label: "LM Studio", url: "http://localhost:1234/v1", model: "" },
+  { label: "llama.cpp", url: "http://localhost:8080/v1", model: "" },
+] as const;
+
 export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { ollamaEnabled, ollamaUrl, ollamaModel, setOllama } = useStore();
-  const [url, setUrl] = useState(ollamaUrl);
-  const [model, setModel] = useState(ollamaModel);
-  const [enabled, setEnabled] = useState(ollamaEnabled);
+  const { localAiEnabled, localAiUrl, localAiModel, setLocalAi } = useStore();
+  const [url, setUrl] = useState(localAiUrl);
+  const [model, setModel] = useState(localAiModel);
+  const [enabled, setEnabled] = useState(localAiEnabled);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<null | { ok: boolean; msg: string }>(null);
 
@@ -23,17 +29,17 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 3000);
-      const res = await fetch(`${url.replace(/\/$/, "")}/api/tags`, { signal: ctrl.signal });
+      const res = await fetch(`${url.replace(/\/$/, "")}/models`, { signal: ctrl.signal });
       clearTimeout(t);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { models?: { name: string }[] };
-      const names = (data.models ?? []).map((m) => m.name);
-      const hasModel = names.some((n) => n === model || n.startsWith(model + ":"));
+      const data = (await res.json()) as { data?: { id: string }[] };
+      const ids = (data.data ?? []).map((m) => m.id);
+      const hasModel = ids.some((id) => id === model || id.startsWith(model + ":"));
       setTestResult({
         ok: true,
         msg: hasModel
-          ? `Connected · ${names.length} model${names.length === 1 ? "" : "s"} · "${model}" found`
-          : `Connected but "${model}" not pulled. Run: ollama pull ${model}`,
+          ? `Connected · ${ids.length} model${ids.length === 1 ? "" : "s"} · "${model}" found`
+          : `Connected but "${model}" wasn't in the model list — check the name.`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -44,7 +50,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   };
 
   const save = () => {
-    setOllama({ ollamaEnabled: enabled, ollamaUrl: url.trim(), ollamaModel: model.trim() });
+    setLocalAi({ localAiEnabled: enabled, localAiUrl: url.trim(), localAiModel: model.trim() });
     toast.success("Settings saved");
     onClose();
   };
@@ -53,7 +59,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     <div className="ed-modal-overlay" onClick={onClose}>
       <div className="ed-modal" onClick={(e) => e.stopPropagation()}>
         <div className="ed-modal-header">
-          <span className="ed-modal-title">⚙ settings · ollama</span>
+          <span className="ed-modal-title">⚙ settings · local AI</span>
           <button className="ed-modal-x" onClick={onClose}>
             ×
           </button>
@@ -62,8 +68,8 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
           {isHosted && (
             <div className="ed-modal-info">
               You're on a hosted instance. Your browser will connect directly to the URL below, so
-              it must be reachable from this page. For a local Ollama, start it with CORS allowed
-              for this origin:
+              it must be reachable from this page. For a local server, start it with CORS allowed
+              for this origin (e.g. for Ollama):
               <br />
               <code>
                 OLLAMA_ORIGINS="
@@ -73,18 +79,35 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
             </div>
           )}
 
+          <div className="ed-field-actions">
+            {PRESETS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                className="ed-btn ghost"
+                onClick={() => {
+                  setUrl(p.url);
+                  if (p.model) setModel(p.model);
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
           <label className="ed-field">
-            <span className="ed-field-label">Ollama base URL</span>
+            <span className="ed-field-label">Local server base URL</span>
             <input
               className="ed-field-input"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="http://localhost:11434"
+              placeholder="http://localhost:11434/v1"
               spellCheck={false}
             />
             <span className="ed-field-hint">
-              Default: <code>http://localhost:11434</code>. For a remote box use{" "}
-              <code>http://your-host:11434</code> or a tunnel URL.
+              Any OpenAI-compatible local server: Ollama, LM Studio, llama.cpp, vLLM, and most
+              others all expose <code>/chat/completions</code> and <code>/models</code> under this
+              base URL.
             </span>
           </label>
 
@@ -98,7 +121,8 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
               spellCheck={false}
             />
             <span className="ed-field-hint">
-              Any model you have pulled. Pull one with <code>ollama pull llama3.2</code>.
+              Whatever model name your server reports — for Ollama, one you've pulled with{" "}
+              <code>ollama pull {model || "llama3.2"}</code>.
             </span>
           </label>
 
@@ -108,7 +132,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
               checked={enabled}
               onChange={(e) => setEnabled(e.target.checked)}
             />
-            <span>AI enabled (Ollama-only — no cloud fallback ships with this app)</span>
+            <span>AI enabled (local only — no cloud fallback ships with this app)</span>
           </label>
 
           <div className="ed-field-actions">

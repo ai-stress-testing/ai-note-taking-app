@@ -9,8 +9,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { DownloadModal } from "@/components/DownloadModal";
 import { CanvasBlock } from "@/components/CanvasBlock";
 import { SettingsModal } from "@/components/SettingsModal";
-import { OllamaAlert } from "@/components/OllamaAlert";
-import { sanitizeForPrompt, extractCurrentQuestion, isOllamaUnreachable } from "@/lib/prompt";
+import { LocalAiAlert } from "@/components/LocalAiAlert";
+import { sanitizeForPrompt, extractCurrentQuestion, isLocalAiUnreachable } from "@/lib/prompt";
 
 import ogImage from "../../public/og-image.jpg.asset.json";
 
@@ -62,9 +62,9 @@ function Editor() {
     aiStatus,
     aiSource,
     setAiStatus,
-    ollamaEnabled,
-    ollamaUrl,
-    ollamaModel,
+    localAiEnabled,
+    localAiUrl,
+    localAiModel,
     logSession,
     incSessionCount,
     resetSession,
@@ -84,7 +84,7 @@ function Editor() {
   const [slash, setSlash] = useState<SlashState>(CLOSED);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [ollamaAlert, setOllamaAlert] = useState<null | string>(null);
+  const [localAiAlert, setLocalAiAlert] = useState<null | string>(null);
   const textareaRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const mirrorRefs = useRef<Array<HTMLPreElement | null>>([]);
 
@@ -184,9 +184,9 @@ function Editor() {
           prompt: `Session buffer:\n${bufferContent}\n\nCounts: ${JSON.stringify(counts)}\nDurations: worked=${fmtDuration(
             stats.workMs,
           )}, break=${fmtDuration(stats.breakMs)}, avg=${fmtDuration(stats.avgWorkMs)}`,
-          ollamaEnabled,
-          ollamaUrl,
-          ollamaModel,
+          localAiEnabled,
+          localAiUrl,
+          localAiModel,
         });
         const parsed = safeJson(text);
         const filled =
@@ -210,8 +210,8 @@ function Editor() {
         const msg = e instanceof Error ? e.message : String(e);
         setAiStatus("err", null);
         toast.dismiss(toastId);
-        if (isOllamaUnreachable(e)) {
-          setOllamaAlert(msg);
+        if (isLocalAiUnreachable(e)) {
+          setLocalAiAlert(msg);
         } else {
           toast.error(`/end AI failed: ${msg}`);
         }
@@ -224,9 +224,9 @@ function Editor() {
       resetSession,
       setAiStatus,
       setContent,
-      ollamaEnabled,
-      ollamaUrl,
-      ollamaModel,
+      localAiEnabled,
+      localAiUrl,
+      localAiModel,
     ],
   );
 
@@ -392,9 +392,9 @@ function Editor() {
         const { text, source } = await runAi({
           system: cmd.system!,
           prompt,
-          ollamaEnabled,
-          ollamaUrl,
-          ollamaModel,
+          localAiEnabled,
+          localAiUrl,
+          localAiModel,
         });
         const block = renderBlock(cmd.name, source, text);
         const cur = useStore.getState().files[activeFileId]?.content ?? "";
@@ -411,8 +411,8 @@ function Editor() {
         setContent(activeFileId, cur.slice(0, placeholderStart) + cur.slice(placeholderEnd));
         setAiStatus("err", null);
         toast.dismiss(toastId);
-        if (isOllamaUnreachable(e)) {
-          setOllamaAlert(msg);
+        if (isLocalAiUnreachable(e)) {
+          setLocalAiAlert(msg);
         } else {
           // Non-connectivity error: leave a visible failure marker in the buffer.
           const errBlock = renderBlock(cmd.name, "err", `Error: ${msg}`);
@@ -430,9 +430,9 @@ function Editor() {
       active,
       activeFolder,
       focusedPane,
-      ollamaEnabled,
-      ollamaUrl,
-      ollamaModel,
+      localAiEnabled,
+      localAiUrl,
+      localAiModel,
       insertAtRange,
       setContent,
       setAiStatus,
@@ -602,7 +602,7 @@ function Editor() {
             <button
               className="ed-header-dl"
               onClick={() => setSettingsOpen(true)}
-              title="Settings (Ollama)"
+              title="Settings (local AI)"
             >
               ⚙
             </button>
@@ -734,18 +734,18 @@ function Editor() {
             {aiStatus === "ok" && `AI · ok (${aiSource})`}
             {aiStatus === "err" && "AI · error"}
           </div>
-          <div className="ed-status-seg">{ollamaEnabled ? `ollama:${ollamaModel}` : "cloud"}</div>
+          <div className="ed-status-seg">{localAiEnabled ? localAiModel : "AI disabled"}</div>
         </div>
       </div>
 
       <DownloadModal open={downloadOpen} onClose={() => setDownloadOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <OllamaAlert
-        open={ollamaAlert !== null}
-        message={ollamaAlert ?? ""}
-        onClose={() => setOllamaAlert(null)}
+      <LocalAiAlert
+        open={localAiAlert !== null}
+        message={localAiAlert ?? ""}
+        onClose={() => setLocalAiAlert(null)}
         onOpenSettings={() => {
-          setOllamaAlert(null);
+          setLocalAiAlert(null);
           setSettingsOpen(true);
         }}
       />

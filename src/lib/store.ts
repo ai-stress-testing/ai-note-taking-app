@@ -17,7 +17,7 @@ export type Folder = {
   accent: string;
 };
 
-export type AiSource = "ollama";
+export type AiSource = "local";
 export type AiStatus = "idle" | "busy" | "ok" | "err";
 
 export type SessionEventType = "start" | "break" | "resume" | "end";
@@ -47,9 +47,10 @@ type State = {
   aiStatus: AiStatus;
   aiSource: AiSource | null;
 
-  ollamaEnabled: boolean;
-  ollamaUrl: string;
-  ollamaModel: string;
+  /** Any OpenAI-compatible local server: Ollama, LM Studio, llama.cpp, vLLM, etc. */
+  localAiEnabled: boolean;
+  localAiUrl: string;
+  localAiModel: string;
 
   sessionEvents: SessionEvent[];
   sessionCounts: SessionCounts;
@@ -78,7 +79,9 @@ type State = {
 
   setContent: (fileId: string, content: string) => void;
   setAiStatus: (s: AiStatus, source?: AiSource | null) => void;
-  setOllama: (patch: Partial<Pick<State, "ollamaEnabled" | "ollamaUrl" | "ollamaModel">>) => void;
+  setLocalAi: (
+    patch: Partial<Pick<State, "localAiEnabled" | "localAiUrl" | "localAiModel">>,
+  ) => void;
 
   logSession: (type: SessionEventType) => SessionEvent;
   incSessionCount: (k: keyof SessionCounts) => void;
@@ -122,9 +125,9 @@ export const useStore = create<State>()(
         fileSearch: "",
         aiStatus: "idle",
         aiSource: null,
-        ollamaEnabled: true,
-        ollamaUrl: "http://localhost:11434",
-        ollamaModel: "llama3.2",
+        localAiEnabled: true,
+        localAiUrl: "http://localhost:11434/v1",
+        localAiModel: "llama3.2",
         sessionEvents: [],
         sessionCounts: { questions: 0, vocab: 0 },
         canvases: {},
@@ -251,7 +254,7 @@ export const useStore = create<State>()(
           ),
         setAiStatus: (aiStatus, aiSource) =>
           set((s) => ({ aiStatus, aiSource: aiSource === undefined ? s.aiSource : aiSource })),
-        setOllama: (patch) => set((s) => ({ ...s, ...patch })),
+        setLocalAi: (patch) => set((s) => ({ ...s, ...patch })),
 
         logSession: (type) => {
           const evt: SessionEvent = { type, at: Date.now() };
@@ -264,7 +267,7 @@ export const useStore = create<State>()(
       };
     },
     {
-      name: "neurovim-state-v3",
+      name: "neurovim-state-v4",
       partialize: (s) => ({
         folders: s.folders,
         files: s.files,
@@ -272,9 +275,9 @@ export const useStore = create<State>()(
         panes: s.panes,
         focusedPane: s.focusedPane,
         sidebarOpen: s.sidebarOpen,
-        ollamaEnabled: s.ollamaEnabled,
-        ollamaUrl: s.ollamaUrl,
-        ollamaModel: s.ollamaModel,
+        localAiEnabled: s.localAiEnabled,
+        localAiUrl: s.localAiUrl,
+        localAiModel: s.localAiModel,
         sessionEvents: s.sessionEvents,
         sessionCounts: s.sessionCounts,
         canvases: s.canvases,

@@ -54,10 +54,10 @@ export function extractCurrentQuestion(content: string, caret: number): string |
 }
 
 /**
- * Detect the "ollama unreachable" class of error so the caller can pop the
+ * Detect the "local AI unreachable" class of error so the caller can pop the
  * dedicated alert modal instead of a generic toast.
  */
-export function isOllamaUnreachable(err: unknown): boolean {
+export function isLocalAiUnreachable(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? "");
-  return /ollama/i.test(msg) && /(unreachable|disabled|failed to fetch|network|abort)/i.test(msg);
+  return /local ai/i.test(msg) && /(unreachable|disabled|failed to fetch|network|abort)/i.test(msg);
 }

@@ -19,16 +19,17 @@ export function DownloadModal({ open, onClose }: { open: boolean; onClose: () =>
 
   const activeFile = files[panes[focusedPane]];
 
-  const OLLAMA_README =
+  const LOCAL_AI_README =
     `# NeuroVim workspace export\n\n` +
-    `⚠️  AI COMMANDS REQUIRE OLLAMA.\n\n` +
+    `⚠️  AI COMMANDS REQUIRE A LOCAL LLM SERVER.\n\n` +
     `This workspace ships without any cloud AI provider. All /help and /end\n` +
-    `AI features require a locally running Ollama server:\n\n` +
-    `  1. Install:  https://ollama.com/download\n` +
+    `AI features require a locally running, OpenAI-compatible server —\n` +
+    `Ollama, LM Studio, llama.cpp server, vLLM, etc:\n\n` +
+    `  1. Install one, e.g. Ollama:  https://ollama.com/download\n` +
     `  2. Pull a model:  ollama pull llama3.2\n` +
-    `  3. Run:  ollama serve  (default: http://localhost:11434)\n\n` +
-    `If Ollama is unreachable the editor will surface an error — it will\n` +
-    `NOT fall back to any cloud provider.\n\n` +
+    `  3. Run:  ollama serve  (default: http://localhost:11434/v1)\n\n` +
+    `If the server is unreachable the editor will surface an error — it\n` +
+    `will NOT fall back to any cloud provider.\n\n` +
     `Exported at: ${new Date().toISOString()}\n`;
 
   const handleDownload = () => {
@@ -36,8 +37,8 @@ export function DownloadModal({ open, onClose }: { open: boolean; onClose: () =>
     if (format === "json") {
       const payload = {
         exportedAt: new Date().toISOString(),
-        aiPolicy: "ollama-only",
-        readme: OLLAMA_README,
+        aiPolicy: "local-only",
+        readme: LOCAL_AI_README,
         folders,
         files: Object.values(files),
         canvases,
@@ -59,13 +60,13 @@ export function DownloadModal({ open, onClose }: { open: boolean; onClose: () =>
           .join("\n\n---\n");
         return `# ${folder.name}\n${body || "\n_(empty)_\n"}`;
       });
-      const md = `${OLLAMA_README}\n---\n\n${parts.join("\n\n===\n\n")}`;
+      const md = `${LOCAL_AI_README}\n---\n\n${parts.join("\n\n===\n\n")}`;
       download(new Blob([md], { type: "text/markdown" }), `neurovim-${ts}.md`);
     } else if (format === "current" && activeFile) {
-      const md = `<!--\n${OLLAMA_README}-->\n\n${activeFile.content}`;
+      const md = `<!--\n${LOCAL_AI_README}-->\n\n${activeFile.content}`;
       download(new Blob([md], { type: "text/markdown" }), activeFile.name);
     }
-    toast.success("Download started · Ollama-only bundle");
+    toast.success("Download started · local-AI-only bundle");
     onClose();
   };
 
@@ -86,8 +87,8 @@ export function DownloadModal({ open, onClose }: { open: boolean; onClose: () =>
             {folders.length === 1 ? "" : "s"}.
           </p>
           <div className="ed-modal-warn">
-            ⚠ Ollama required. This bundle ships without cloud AI — /help and /end need a local{" "}
-            <code>ollama serve</code> to work.
+            ⚠ Local AI server required. This bundle ships without cloud AI — /help and /end need a
+            local OpenAI-compatible server (e.g. <code>ollama serve</code>) to work.
           </div>
 
           <label className={`ed-modal-opt ${format === "json" ? "active" : ""}`}>

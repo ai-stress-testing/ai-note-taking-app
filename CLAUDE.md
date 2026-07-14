@@ -6,7 +6,8 @@ while keeping the study-specific workflow (slash commands, session timer,
 spaced-recall stubs) that differentiates it from a generic notes app.
 
 Currently **no backend** — all state lives in the browser (zustand persisted
-to `localStorage`). AI features require a local Ollama server; there is no
+to `localStorage`). AI features require a local, OpenAI-compatible LLM server
+(Ollama, LM Studio, llama.cpp server, vLLM, etc. — user's choice); there is no
 cloud AI fallback by design.
 
 ## Stack
@@ -31,9 +32,12 @@ Zustand + Tailwind v4. Package manager: Bun.
   a few hundred lines of actions.
 - `src/lib/commands.ts` — slash-command definitions (`/question`, `/canvas`,
   `/start`, `/help`, etc.) and their text-block templates.
-- `src/lib/ai-client.ts` — the only AI entry point (`runAi`), Ollama-only.
-  Don't add a cloud provider path without discussing it first — the
-  Ollama-only design is intentional (see comments in that file).
+- `src/lib/ai-client.ts` — the only AI entry point (`runAi`), local-only.
+  Speaks the OpenAI-compatible chat-completions protocol so any local
+  server (Ollama, LM Studio, llama.cpp, vLLM) works behind the configured
+  URL/model — don't hardcode a specific provider here. Don't add a cloud
+  provider path without discussing it first — the local-only design is
+  intentional (see comments in that file).
 - `src/lib/prompt.ts` — prompt-injection/control-char sanitization before any
   note content is sent to the model.
 - `src/components/` — hand-rolled UI (no shadcn components are wired in
@@ -43,7 +47,7 @@ Zustand + Tailwind v4. Package manager: Bun.
 
 ## Conventions
 
-- No comments unless they explain a non-obvious *why* (see existing files
+- No comments unless they explain a non-obvious _why_ (see existing files
   for the bar to clear).
 - Prettier formatting is enforced via `eslint-plugin-prettier`; run
   `bun run format` before committing.
