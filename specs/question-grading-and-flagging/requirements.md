@@ -32,6 +32,16 @@ about.
 - R6. If grading fails (model unreachable/malformed output), the question
   block is left as the student wrote it, with a visible error state — no
   fabricated correct/incorrect verdict ever gets attached silently.
+- R7. `/question` supports an MCQ mode: the inserted template includes 4
+  empty answer-option brackets by default (e.g. `[ ] ...`), which the
+  student fills in and marks one as their answer, instead of (or in
+  addition to) today's free-response body.
+- R8. Grading (R1/R2) handles both shapes of a closed question block —
+  free-response text and MCQ bracket-selection — without the student
+  needing to tell it which kind it's looking at.
+- R9. Respects `specs/ai-privacy-boundary/`: a question closed inside a
+  file/folder marked personal is never sent for grading (R1/R2 no-op;
+  R3's manual flag still works since it isn't an AI call).
 
 ## Non-goals (this pass)
 
@@ -54,3 +64,11 @@ about.
 - Whether R4 should still fall back to raw-buffer parsing when a session
   has zero closed questions (e.g. a pure free-writing session) rather
   than producing an empty/degenerate summary.
+- Whether MCQ (R7) becomes the default `/question` template or an
+  explicit variant (e.g. `/question mcq`) alongside today's free-response
+  shape — the ask was "options for mcq," which reads as adding the
+  capability, not necessarily replacing the default; needs a decision at
+  design time.
+- Exact bracket-marking syntax for "this is my answer" in R7/R8 (e.g.
+  `[x]` vs `[ ]`, matching common Markdown checkbox conventions the
+  student may already expect).

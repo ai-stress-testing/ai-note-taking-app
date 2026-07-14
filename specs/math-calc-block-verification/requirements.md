@@ -42,6 +42,9 @@ block doesn't trigger anything.
   malformed output), the block is left as the user wrote it with a
   visible error state — never silently discarded or replaced with
   something the user didn't write.
+- R7. Respects `specs/ai-privacy-boundary/`: closing one of these blocks
+  inside a personal-marked file/folder never sends anything for
+  correction/verification — the block stays exactly as typed.
 
 ## Non-goals (this pass)
 
