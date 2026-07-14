@@ -141,6 +141,9 @@ type State = {
   deleteFile: (id: string) => void;
   setActiveFolder: (id: string) => void;
   createFolder: (name: string, accent?: string) => string;
+  renameFolder: (id: string, name: string) => void;
+  /** Deletes the folder and everything in it (files, canvases), tombstoned for sync. */
+  deleteFolder: (id: string) => void;
   setFileSearch: (q: string) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
@@ -502,6 +505,51 @@ export const useStore = create<State>()(
           }));
           return id;
         },
+        renameFolder: (id, name) =>
+          set((s) => ({
+            folders: s.folders.map((f) =>
+              f.id === id ? { ...f, name, updatedAt: Date.now() } : f,
+            ),
+          })),
+        deleteFolder: (id) =>
+          set((s) => {
+            if (s.folders.length <= 1 || !s.folders.some((f) => f.id === id)) return s;
+            const now = Date.now();
+            const tombstones = [...s.tombstones, { kind: "folder" as const, id, at: now }];
+            const files: Record<string, FileDoc> = {};
+            for (const [fid, f] of Object.entries(s.files)) {
+              if (f.folderId === id) tombstones.push({ kind: "file", id: fid, at: now });
+              else files[fid] = f;
+            }
+            const canvases: Record<string, CanvasData[]> = {};
+            for (const [fid, list] of Object.entries(s.canvases)) {
+              if (files[fid]) canvases[fid] = list;
+              else for (const c of list) tombstones.push({ kind: "canvas", id: c.id, at: now });
+            }
+            const folders = s.folders.filter((f) => f.id !== id);
+            let fileIds = Object.keys(files);
+            if (fileIds.length === 0) {
+              const newId = `file-${uid()}`;
+              files[newId] = {
+                id: newId,
+                folderId: folders[0].id,
+                name: "scratch.md",
+                content: "",
+                createdAt: now,
+                updatedAt: now,
+              };
+              fileIds = [newId];
+            }
+            const panes = s.panes.map((p) => (files[p] ? p : fileIds[0]));
+            return {
+              folders,
+              files,
+              canvases,
+              panes,
+              tombstones,
+              activeFolderId: s.activeFolderId === id ? folders[0].id : s.activeFolderId,
+            };
+          }),
         setFileSearch: (q) => set({ fileSearch: q }),
         toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
         setSidebarOpen: (open) => set({ sidebarOpen: open }),

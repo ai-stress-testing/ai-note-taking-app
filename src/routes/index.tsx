@@ -1,20 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore, computeSessionStats, fmtDuration, fmtClock } from "@/lib/store";
-import { COMMANDS, findCommand, type CommandDef, END_SESSION_SYSTEM_EXPORT } from "@/lib/commands";
+import {
+  COMMANDS,
+  findCommand,
+  type CommandDef,
+  END_SESSION_SYSTEM_EXPORT,
+  NOTE_SYSTEM,
+} from "@/lib/commands";
 import { queueAi } from "@/lib/ai-queue";
 import { getCaretCoords } from "@/lib/caret";
 import { toast } from "sonner";
 import { Sidebar } from "@/components/Sidebar";
 import { DownloadModal } from "@/components/DownloadModal";
-import { CanvasBlock } from "@/components/CanvasBlock";
 import { SettingsModal } from "@/components/SettingsModal";
 import { LocalAiAlert } from "@/components/LocalAiAlert";
 import { AiQueueModal } from "@/components/AiQueueModal";
 import { sanitizeForPrompt, extractCurrentQuestion, isLocalAiUnreachable } from "@/lib/prompt";
 import { initSync } from "@/lib/sync";
-import { parseBlockToCards } from "@/lib/card-parse";
-import { FlashcardTray } from "@/components/FlashcardTray";
+import { parseBlockToCards, parseNoteBlock } from "@/lib/card-parse";
+import { markerBlock, removeMarkerBlock, REVIEW_MARKER } from "@/lib/inline-widgets";
+import { InlineWidgetLayer } from "@/components/InlineWidgetLayer";
 import { AmbientWaves } from "@/components/AmbientWaves";
 
 import ogImage from "../../public/og-image.jpg.asset.json";
@@ -79,10 +85,7 @@ function Editor() {
     toggleSidebar,
     fileSearch,
     setFileSearch,
-    canvases,
     addCanvas,
-    setCanvas,
-    deleteCanvas,
     addCard,
   } = useStore();
 
@@ -99,6 +102,14 @@ function Editor() {
   useEffect(() => {
     setHydrated(true);
     initSync();
+    // Review sessions are transient; a marker left by a closed tab would
+    // otherwise reserve dead space forever.
+    const s = useStore.getState();
+    for (const f of Object.values(s.files)) {
+      if (f.content.includes(REVIEW_MARKER)) {
+        s.setContent(f.id, removeMarkerBlock(f.content, REVIEW_MARKER));
+      }
+    }
   }, []);
 
   const activeFileId = panes[focusedPane];
@@ -242,6 +253,47 @@ function Editor() {
     ],
   );
 
+  const summarizeNote = useCallback(
+    async (body: string, insertAt: number) => {
+      const closeLen = `──────────────────────────────────────────────────\n\n`.length;
+      const placeholder = renderBlock("/note", "…", "distilling…");
+      const at = insertAt + closeLen;
+      {
+        const cur = useStore.getState().files[activeFileId]?.content ?? "";
+        setContent(activeFileId, cur.slice(0, at) + placeholder + cur.slice(at));
+      }
+      setAiStatus("busy", null);
+      try {
+        const { text, source } = await queueAi({
+          command: "/note",
+          system: NOTE_SYSTEM,
+          prompt: "```note\n" + sanitizeForPrompt(body, 4000) + "\n```",
+          localAiEnabled,
+          localAiUrl,
+          localAiModel,
+        });
+        const parsed = safeJson(text) as { summary?: string; tags?: string[] } | null;
+        const block = renderBlock(
+          "/note",
+          source,
+          `summary: ${parsed?.summary ?? text.slice(0, 200)}\ntags:    ${(parsed?.tags ?? []).slice(0, 3).join(", ") || "(none)"}`,
+        );
+        const cur = useStore.getState().files[activeFileId]?.content ?? "";
+        setContent(activeFileId, cur.replace(placeholder, block));
+        setAiStatus("ok", source);
+      } catch (e) {
+        // Leave the note exactly as written — only the placeholder goes away.
+        const cur = useStore.getState().files[activeFileId]?.content ?? "";
+        setContent(activeFileId, cur.replace(placeholder, ""));
+        setAiStatus("err", null);
+        const msg = e instanceof Error ? e.message : String(e);
+        if (isLocalAiUnreachable(e)) setLocalAiAlert(msg);
+        else toast.error(`/note summary failed: ${msg}`);
+      }
+    },
+    [activeFileId, setContent, setAiStatus, localAiEnabled, localAiUrl, localAiModel],
+  );
+
   const executeCommand = useCallback(
     async (cmd: CommandDef, args: string, lineStart: number, lineEnd: number) => {
       if (!cmd.ai) {
@@ -280,6 +332,7 @@ function Editor() {
           }
           case "tpl:close": {
             const buffer = useStore.getState().files[activeFileId]?.content ?? "";
+            const noteBody = parseNoteBlock(buffer, lineStart);
             const parsed = parseBlockToCards(buffer, lineStart);
             for (const p of parsed) addCard({ ...p, fileId: activeFileId });
             if (parsed.length > 0) {
@@ -292,6 +345,13 @@ function Editor() {
               lineEnd,
               `──────────────────────────────────────────────────\n\n`,
             );
+            if (noteBody) await summarizeNote(noteBody, lineStart);
+            return;
+          }
+          case "tpl:note": {
+            const header = `── Note ──────────────────────────────────────────\n`;
+            const tpl = `${header}${args ? args + "\n" : "  "}`;
+            insertAtRange(lineStart, lineEnd, tpl);
             return;
           }
           case "tpl:vocab": {
@@ -312,8 +372,8 @@ function Editor() {
               .filter((c) => c.fsrs.dueAt <= now)
               .sort((a, b) => a.fsrs.dueAt - b.fsrs.dueAt)
               .slice(0, 10);
-            insertAtRange(lineStart, lineEnd, "");
             if (due.length === 0) {
+              insertAtRange(lineStart, lineEnd, "");
               const next = all.map((c) => c.fsrs.dueAt).sort((a, b) => a - b)[0];
               toast.success(
                 next
@@ -322,6 +382,12 @@ function Editor() {
               );
               return;
             }
+            // Anchor the review tray to this line: the marker reserves space
+            // and InlineWidgetLayer renders the tray over it.
+            const cur = useStore.getState().files[activeFileId]?.content ?? "";
+            const cleaned = removeMarkerBlock(cur, REVIEW_MARKER);
+            if (cleaned !== cur) setContent(activeFileId, cleaned);
+            insertAtRange(lineStart, lineEnd, markerBlock(REVIEW_MARKER, 340));
             setReviewIds(due.map((c) => c.id));
             return;
           }
@@ -359,8 +425,8 @@ function Editor() {
 
           case "tpl:canvas": {
             const id = addCanvas(activeFileId);
-            insertAtRange(lineStart, lineEnd, `⟦canvas:${id}⟧\n`);
-            toast.success("Canvas added below");
+            insertAtRange(lineStart, lineEnd, markerBlock(`⟦canvas:${id}⟧`, 260));
+            toast.success("Canvas added at this line");
             return;
           }
 
@@ -481,6 +547,7 @@ function Editor() {
       incSessionCount,
       logSession,
       runEndSession,
+      summarizeNote,
       addCard,
     ],
   );
@@ -729,22 +796,17 @@ function Editor() {
                         }
                         spellCheck={false}
                       />
+                      {hydrated && (
+                        <InlineWidgetLayer
+                          fileId={b.id}
+                          content={b.content}
+                          textarea={textareaRefs.current[i]}
+                          focused={isFocused}
+                          reviewIds={reviewIds}
+                          onCloseReview={() => setReviewIds(null)}
+                        />
+                      )}
                     </div>
-                    {hydrated && (canvases[b.id]?.length ?? 0) > 0 && (
-                      <div className="ed-canvas-tray">
-                        {canvases[b.id].map((cv) => (
-                          <CanvasBlock
-                            key={cv.id}
-                            data={cv}
-                            onChange={(next) => setCanvas(b.id, { ...cv, ...next })}
-                            onDelete={() => deleteCanvas(b.id, cv.id)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {hydrated && isFocused && reviewIds && (
-                      <FlashcardTray ids={reviewIds} onClose={() => setReviewIds(null)} />
-                    )}
                   </div>
                   {isFocused && slash.open && filteredCmds.length > 0 && (
                     <SlashMenu
@@ -871,7 +933,7 @@ function renderHighlighted(content: string): React.ReactNode {
         </span>
       );
     }
-    if (line.startsWith("── ") || line.startsWith("──────────")) {
+    if (line.startsWith("── ") || line.startsWith("──────────") || line.startsWith("⟦")) {
       return (
         <span key={i} className="rule">
           {line}

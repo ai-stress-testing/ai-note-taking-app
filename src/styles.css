@@ -284,7 +284,8 @@ kbd {
   border-radius: 3px;
   visibility: hidden;
 }
-.ed-side-file:hover .ed-side-file-x {
+.ed-side-file:hover .ed-side-file-x,
+.ed-side-folder:hover .ed-side-file-x {
   visibility: visible;
 }
 .ed-side-file-x:hover {
@@ -1535,4 +1536,12 @@ kbd {
   .ed-fc-card.in {
     transition: none;
   }
+}
+
+/* Inline widgets anchored to their invocation line */
+.ed-inline-review .ed-fc-tray {
+  margin: 0;
+  max-height: 330px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
 }

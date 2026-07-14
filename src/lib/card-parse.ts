@@ -9,12 +9,32 @@ import type { Card, CardChoice } from "./store";
 export type ParsedCard = Pick<Card, "kind"> &
   Partial<Pick<Card, "question" | "partLabel" | "choices" | "front" | "back">>;
 
-const MARKERS = ["── Card ", "── Vocab ", "── Question "] as const;
+const MARKERS = ["── Card ", "── Vocab ", "── Question ", "── Note "] as const;
 const CLOSE_RULE = "──────────────────────────────────────────────────";
 
 function fieldValue(block: string, field: string): string {
   const m = new RegExp(`^\\s*${field}:\\s*(.*)$`, "m").exec(block);
   return m ? m[1].trim() : "";
+}
+
+/** Body of the unclosed ── Note ── block enclosing the caret, if any. */
+export function parseNoteBlock(buffer: string, caret: number): string | null {
+  const before = buffer.slice(0, caret);
+  let markerIdx = -1;
+  let marker: (typeof MARKERS)[number] | null = null;
+  for (const m of MARKERS) {
+    const idx = before.lastIndexOf(m);
+    if (idx > markerIdx) {
+      markerIdx = idx;
+      marker = m;
+    }
+  }
+  if (marker !== "── Note ") return null;
+  if (before.slice(markerIdx + marker.length).includes(CLOSE_RULE)) return null;
+  const firstLineEnd = buffer.indexOf("\n", markerIdx);
+  if (firstLineEnd === -1 || firstLineEnd >= caret) return null;
+  const body = buffer.slice(firstLineEnd + 1, caret).trim();
+  return body || null;
 }
 
 export function parseBlockToCards(buffer: string, caret: number): ParsedCard[] {
@@ -31,6 +51,8 @@ export function parseBlockToCards(buffer: string, caret: number): ParsedCard[] {
   if (marker === null) return [];
   // Already-closed blocks don't produce cards twice.
   if (before.slice(markerIdx + marker.length).includes(CLOSE_RULE)) return [];
+  // Notes aren't cards — closing one is handled by the /note AI summary path.
+  if (marker === "── Note ") return [];
   const block = buffer.slice(markerIdx, caret);
 
   if (marker === "── Card ") {
