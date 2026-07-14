@@ -971,11 +971,6 @@ body {
   display: flex;
   flex-direction: column;
 }
-.ed-editor-scroll .ed-textarea {
-  min-height: 200px;
-  flex: 0 0 auto;
-  height: auto;
-}
 .ed-canvas-tray {
   display: flex;
   flex-direction: column;
@@ -1131,19 +1126,18 @@ body {
 }
 
 .ed-textarea.overlay {
-  position: relative;
+  /* Must occupy the exact same box as .ed-mirror (same `inset: 0` on the
+     same positioned ancestor) — any size mismatch between the two desyncs
+     the real caret from the highlighted text underneath it. */
+  position: absolute;
+  inset: 0;
   z-index: 1;
-  display: block;
-  width: 100%;
-  min-height: 220px;
-  height: auto;
   background: transparent;
   color: transparent;
   caret-color: var(--ctp-mauve);
   -webkit-text-fill-color: transparent;
   resize: none;
   outline: none;
-  field-sizing: content;
 }
 .ed-textarea.overlay::placeholder {
   color: var(--ctp-surface2);
