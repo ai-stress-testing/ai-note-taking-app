@@ -3,6 +3,10 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
+// Print the token banner at startup, not buried in the first /api request.
+// The `booted` guard in api.ts keeps this idempotent with the per-request call.
+void import("./lib/server/api").then((m) => m.bootOnce()).catch(() => {});
+
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };

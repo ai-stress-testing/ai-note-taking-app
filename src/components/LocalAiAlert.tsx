@@ -14,6 +14,9 @@ export function LocalAiAlert({
   const { localAiUrl, localAiModel } = useStore();
   if (!open) return null;
 
+  const trimmedUrl = localAiUrl.trim().replace(/\/+$/, "");
+  const modelsUrl = /\/v\d+$/.test(trimmedUrl) ? `${trimmedUrl}/models` : `${trimmedUrl}/v1/models`;
+
   const origin = typeof window !== "undefined" ? window.location.origin : "https://your-app";
   const isHosted =
     typeof window !== "undefined" &&
@@ -60,7 +63,7 @@ export function LocalAiAlert({
                 Run: <code>ollama serve</code>
               </li>
               <li>
-                Confirm: <code>curl {localAiUrl}/models</code>
+                Confirm: <code>curl {modelsUrl}</code>
               </li>
               <li>
                 Already running LM Studio, llama.cpp server, or vLLM instead? Point Settings at{" "}

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useStore } from "@/lib/store";
+import { probeLocalAi } from "@/lib/ai-client";
 import { toast } from "sonner";
 import {
   generateAndDownloadKey,
@@ -59,19 +60,13 @@ function SettingsForm({ onClose }: { onClose: () => void }) {
     setTesting(true);
     setTestResult(null);
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 3000);
-      const res = await fetch(`${url.replace(/\/$/, "")}/models`, { signal: ctrl.signal });
-      clearTimeout(t);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { data?: { id: string }[] };
-      const ids = (data.data ?? []).map((m) => m.id);
-      const hasModel = ids.some((id) => id === model || id.startsWith(model + ":"));
+      const { base, models } = await probeLocalAi(url);
+      const hasModel = models.some((id) => id === model || id.startsWith(model + ":"));
       setTestResult({
         ok: true,
         msg: hasModel
-          ? `Connected · ${ids.length} model${ids.length === 1 ? "" : "s"} · "${model}" found`
-          : `Connected but "${model}" wasn't in the model list — check the name.`,
+          ? `Connected at ${base} · ${models.length} model${models.length === 1 ? "" : "s"} · "${model}" found`
+          : `Connected at ${base} but "${model}" wasn't in the model list — check the name.`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -154,13 +149,15 @@ function SettingsForm({ onClose }: { onClose: () => void }) {
               className="ed-field-input"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="http://localhost:11434/v1"
+              placeholder="http://localhost:11434"
               spellCheck={false}
             />
             <span className="ed-field-hint">
               Any OpenAI-compatible local server: Ollama, LM Studio, llama.cpp, vLLM, and most
               others all expose <code>/chat/completions</code> and <code>/models</code> under this
-              base URL.
+              base URL. With or without <code>/v1</code> both work (e.g.{" "}
+              <code>http://localhost:11434</code> or <code>http://localhost:11434/v1</code>) — it's
+              probed automatically.
             </span>
           </label>
 

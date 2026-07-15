@@ -28,7 +28,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 let booted = false;
-async function bootOnce(): Promise<void> {
+export async function bootOnce(): Promise<void> {
   if (booted) return;
   booted = true;
   const token = await ensureBootToken();
@@ -41,6 +41,8 @@ async function bootOnce(): Promise<void> {
         "  Paste it into Settings → Sync in the app.\n" +
         "  Lost it? Run: bun run token:reset\n",
     );
+  } else {
+    console.log("NeuroVim backend: sync token already configured (bun run token:reset to rotate).");
   }
 }
 
@@ -58,6 +60,9 @@ export async function handleApi(request: Request): Promise<Response | null> {
     authFailures++;
     return json({ error: "unauthorized" }, 401);
   }
+  // A legitimate user who finally pastes the right token shouldn't stay
+  // locked out by their own earlier typos; an attacker never reaches here.
+  authFailures = 0;
 
   if (url.pathname === "/api/health" && request.method === "GET") {
     return json({ ok: true, serverTime: Date.now() });

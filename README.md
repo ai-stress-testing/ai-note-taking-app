@@ -7,8 +7,10 @@ questions, vocab, cards) → **check for loss** (local-LLM verification) →
 
 Everything runs on your machine. AI features use any local
 OpenAI-compatible server (Ollama, LM Studio, llama.cpp, vLLM) — no cloud,
-by design. Notes sync to the built-in backend end-to-end encrypted with a
-key only you hold.
+by design. Point Settings at the server's base URL, with or without the
+`/v1` suffix — both `http://localhost:11434` and `http://localhost:11434/v1`
+work; the app probes for the OpenAI-compatible routes automatically. Notes
+sync to the built-in backend end-to-end encrypted with a key only you hold.
 
 ## Run it — one command
 
@@ -31,9 +33,12 @@ Either way the app is at **http://localhost:8080**.
 Without setup, everything lives in your browser's localStorage — exactly
 as before. To get durable, server-side persistence:
 
-1. Start the app. On first boot the server prints a **sync token** to the
-   terminal (once). Lost it? `bun run token:reset` (or
-   `docker compose exec neurovim node scripts/token-reset.mjs`).
+1. Start the app. The server prints a token banner to the terminal at
+   startup — on first boot the **sync token** itself (once), and on later
+   boots a one-line reminder that a token is already configured. Lost it?
+   `bun run token:reset`. **In Docker the reset must run inside the
+   container** — `docker compose exec neurovim node scripts/token-reset.mjs`
+   — because a host-side `bun run token:reset` edits a different database.
 2. In the app: **⚙ Settings → sync & encrypted backup** → paste the token.
 3. Click **generate & download key** — a 32-byte key file downloads. Keep
    it somewhere safe (password manager, USB drive). **The app and server

@@ -4,10 +4,14 @@
 import { DatabaseSync } from "node:sqlite";
 import { createHash, randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import path from "node:path";
 
 const dir = process.env.NEUROVIM_DATA_DIR ?? "./data";
 mkdirSync(dir, { recursive: true });
-const db = new DatabaseSync(`${dir}/neurovim.sqlite`);
+const dbPath = path.resolve(dir, "neurovim.sqlite");
+// Print the absolute path so a host ./data vs container /data mismatch is visible.
+console.log(`Rotating token in ${dbPath}`);
+const db = new DatabaseSync(dbPath);
 db.exec(
   "create table if not exists auth_tokens (id integer primary key autoincrement, token_hash text not null, created_at integer not null)",
 );

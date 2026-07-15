@@ -345,8 +345,19 @@ export async function pullNow(): Promise<void> {
 export async function testConnection(token: string): Promise<{ ok: boolean; msg: string }> {
   try {
     const res = await fetch("/api/health", { headers: { authorization: `Bearer ${token}` } });
+    if (res.status === 429)
+      return {
+        ok: false,
+        msg: "Too many failed attempts — the server is rate limiting auth. Wait ~5 minutes and try again.",
+      };
     if (res.status === 401)
-      return { ok: false, msg: "Server reachable, but the token was rejected." };
+      return {
+        ok: false,
+        msg:
+          "Server reachable, but the token was rejected. If the app runs in Docker, reset with: " +
+          "docker compose exec neurovim node scripts/token-reset.mjs " +
+          '(a host-side "bun run token:reset" edits a different database).',
+      };
     if (!res.ok) return { ok: false, msg: `Server error: HTTP ${res.status}` };
     return { ok: true, msg: "Connected — token accepted." };
   } catch (e) {
