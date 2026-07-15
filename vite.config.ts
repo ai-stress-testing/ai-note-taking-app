@@ -16,7 +16,12 @@ export default defineConfig(async ({ command }) => ({
         client: { files: ["**/server/**"], specifiers: ["server-only"] },
       },
     }),
-    ...(command === "build" ? [(await import("nitro/vite")).nitro()] : []),
+    // Pin the Nitro preset to node-server. The Docker image builds inside a
+    // Bun-only stage (oven/bun) but runs the output under Node (node:slim);
+    // left to auto-detect, Nitro sees Bun at build time and emits the `bun`
+    // preset (srvx/bun → Bun.serve), which throws "Bun is not defined" the
+    // moment Node starts it. Both dev and the runtime target are Node.
+    ...(command === "build" ? [(await import("nitro/vite")).nitro({ preset: "node-server" })] : []),
     viteReact(),
   ],
   resolve: {
