@@ -3,6 +3,10 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
+// Print the token banner at startup, not buried in the first /api request.
+// The `booted` guard in api.ts keeps this idempotent with the per-request call.
+void import("./lib/server/api").then((m) => m.bootOnce()).catch(() => {});
+
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
@@ -40,6 +44,12 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      // Persistence API lives on the same server as the app — one deployable
+      // unit, same origin, no CORS surface.
+      const { handleApi } = await import("./lib/server/api");
+      const apiResponse = await handleApi(request);
+      if (apiResponse) return apiResponse;
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

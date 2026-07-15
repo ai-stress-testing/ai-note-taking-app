@@ -32,14 +32,33 @@ Zustand + Tailwind v4. Package manager: Bun.
   a few hundred lines of actions.
 - `src/lib/commands.ts` — slash-command definitions (`/question`, `/canvas`,
   `/start`, `/help`, etc.) and their text-block templates.
-- `src/lib/ai-client.ts` — the only AI entry point (`runAi`), local-only.
+- `src/lib/ai-client.ts` — the low-level AI call (`runAi`), local-only.
   Speaks the OpenAI-compatible chat-completions protocol so any local
   server (Ollama, LM Studio, llama.cpp, vLLM) works behind the configured
   URL/model — don't hardcode a specific provider here. Don't add a cloud
   provider path without discussing it first — the local-only design is
   intentional (see comments in that file).
+- `src/lib/ai-queue.ts` — `queueAi`, the entry point app code should
+  actually call (not `runAi` directly). Serializes every call behind one
+  promise chain so only one request is ever in flight, and records each
+  one into the store's `aiQueue` — the same list backs both the pending
+  queue and the audit trail shown in the AI status button's modal.
 - `src/lib/prompt.ts` — prompt-injection/control-char sanitization before any
   note content is sent to the model.
+- `src/lib/ai-queue.ts` is also the AI privacy chokepoint: pass `fileId` and
+  personal files/folders are rejected before any request is built. Never
+  call `runAi` directly from app code.
+- `src/lib/calc-eval.ts` — safe arithmetic evaluator behind /calc: the model
+  extracts the expression, this evaluates it. No eval, allowlisted grammar.
+- `src/lib/fsrs.ts` — FSRS-4.5 scheduler, pure functions. `src/lib/card-parse.ts`
+  turns closed /card, /vocab, /question blocks into cards;
+  `src/components/FlashcardTray.tsx` is the inline review UI behind `/fsrs`.
+- `src/lib/sync.ts` + `src/lib/crypto.ts` + `src/lib/sync-schema.ts` — optional
+  encrypted sync: AES-GCM in the browser (user-held key file, session-only in
+  memory), zod-validated wire format, last-write-wins with tombstones.
+- `src/lib/server/` — the persistence backend (SQLite via node:sqlite/bun:sqlite
+  adapter, bearer-token auth), mounted as `/api/*` in `src/server.ts`. Same
+  origin as the app; one deployable unit (see Dockerfile/docker-compose.yml).
 - `src/components/` — hand-rolled UI (no shadcn components are wired in
   currently). `components.json` is kept so `npx shadcn add <name>` still
   works if a feature needs a primitive — add components on demand, not in

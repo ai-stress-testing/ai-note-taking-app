@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useStore, fmtClock } from "@/lib/store";
+import { useStore, fmtClock, isFilePersonal } from "@/lib/store";
 import { toast } from "sonner";
 
 export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
@@ -11,6 +11,11 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
     createFile,
     deleteFile,
     renameFile,
+    createFolder,
+    renameFolder,
+    deleteFolder,
+    toggleFilePersonal,
+    toggleFolderPersonal,
     openFileInPane,
     focusedPane,
     panes,
@@ -49,6 +54,19 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
       <div className="ed-side-section">
         <div className="ed-side-section-label">
           <span>folders</span>
+          <button
+            className="ed-side-plus"
+            title="New folder"
+            onClick={() => {
+              const n = prompt("Folder name");
+              if (n && n.trim()) {
+                setActiveFolder(createFolder(n.trim()));
+                toast.success("Folder created");
+              }
+            }}
+          >
+            +
+          </button>
         </div>
         <ul className="ed-side-folders">
           {folders.map((f) => {
@@ -59,10 +77,46 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
                 key={f.id}
                 className={`ed-side-folder ${active ? "active" : ""}`}
                 onClick={() => setActiveFolder(f.id)}
+                onDoubleClick={() => {
+                  const n = prompt("Rename folder", f.name);
+                  if (n && n.trim()) renameFolder(f.id, n.trim());
+                }}
+                title="Double-click to rename"
               >
                 <span className={`ed-folder-dot ac-${f.accent}`} />
                 <span className="ed-folder-name">{f.name}</span>
                 <span className="ed-folder-count">{count}</span>
+                <button
+                  className={`ed-personal-toggle ${f.personal ? "on" : ""}`}
+                  title={
+                    f.personal
+                      ? "Personal folder — content here is never sent to AI. Click to allow."
+                      : "Mark folder personal (never sent to AI)"
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFolderPersonal(f.id);
+                  }}
+                >
+                  ⊘
+                </button>
+                <button
+                  className="ed-side-file-x"
+                  title="Delete folder and its files"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (folders.length <= 1) {
+                      toast.error("Can't delete the last folder");
+                      return;
+                    }
+                    if (
+                      confirm(`Delete "${f.name}" and its ${count} file${count === 1 ? "" : "s"}?`)
+                    )
+                      deleteFolder(f.id);
+                  }}
+                >
+                  ×
+                </button>
               </li>
             );
           })}
@@ -103,6 +157,22 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
                 <span className="ed-side-file-meta" suppressHydrationWarning>
                   {fmtClock(f.updatedAt)}
                 </span>
+                <button
+                  className={`ed-personal-toggle ${isFilePersonal(f.id, files, folders) ? "on" : ""}`}
+                  title={
+                    f.personal === undefined
+                      ? "AI privacy: inheriting from folder — click to mark personal"
+                      : f.personal
+                        ? "Personal file — never sent to AI. Click to mark normal."
+                        : "Normal file (overrides folder) — click to inherit from folder"
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFilePersonal(f.id);
+                  }}
+                >
+                  ⊘
+                </button>
                 <button
                   className="ed-side-file-x"
                   title="Delete file"

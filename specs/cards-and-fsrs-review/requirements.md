@@ -44,7 +44,7 @@ later.
 - Custom/user-defined FSRS parameters (retention target, custom weights)
   — use sane library defaults.
 - Cross-device review-state conflicts beyond what `specs/
-  backend-persistence/`'s last-write-wins sync already handles — this
+backend-persistence/`'s last-write-wins sync already handles — this
   spec doesn't add a second conflict-resolution mechanism.
 
 ## Open questions
