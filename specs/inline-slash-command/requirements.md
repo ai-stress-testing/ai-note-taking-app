@@ -36,7 +36,7 @@ a newline first.
   start-of-line behavior already has this property by virtue of position;
   the inline case has to earn it some other way (see design.md).
 - R5. Multiple `/`-looking tokens on one line (e.g. a path pasted earlier
-  in the line, then a real command typed after it) resolve to the *nearest*
+  in the line, then a real command typed after it) resolve to the _nearest_
   `/` at-or-before the caret, not the first one on the line — the menu
   should reflect what the user is currently typing, not something already
   written earlier in the line.
@@ -45,7 +45,7 @@ a newline first.
   line — this is additive, not a replacement of the existing start-of-line
   path.
 - R7. Existing commands, their templates, and their AI/close behavior are
-  unchanged — this is purely about *where* a command can be typed from,
+  unchanged — this is purely about _where_ a command can be typed from,
   not what any individual command does.
 
 ## Non-goals

@@ -5,8 +5,8 @@
 `sessionEvents: SessionEvent[]` is a flat live log of `start/break/resume/
 end` timestamps; `computeSessionStats(events, now)` folds it into
 `workMs/breakMs/avgWorkMs`; `/end` writes an in-note stats block then calls
-`resetSession()` which clears the log. Analytics re-folds the *same live
-log* for all-time + 14-day data — so the reset is a data-loss bug. The fix
+`resetSession()` which clears the log. Analytics re-folds the _same live
+log_ for all-time + 14-day data — so the reset is a data-loss bug. The fix
 is to **finalize sessions into durable records** and point analytics at
 those, while the live log keeps driving only the current session's bar.
 

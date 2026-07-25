@@ -31,9 +31,9 @@ In `src/routes/index.tsx`, the `<textarea className="ed-textarea overlay">`
 (around the line currently reading `spellCheck={false}`) changes to:
 
 ```tsx
-spellCheck
-autoCorrect="on"
-autoCapitalize="sentences"
+spellCheck;
+autoCorrect = "on";
+autoCapitalize = "sentences";
 ```
 
 (`spellCheck` with no value is the same as `spellCheck={true}` in JSX —

@@ -12,14 +12,15 @@ calling `rateCard(id, rating)` per card. `rateCard` runs `reviewCard`
 and the card leaves the tray. Seed data: `seedCards()` returns 8 starter
 cards, gated by `cardsSeeded`, injected at store init and in `migrate`.
 
-The key architectural boundary: **the FSRS scheduler decides *persisted*
-scheduling; the session queue decides *what the user sees next this
-sitting*.** #7 changes the session queue, not the scheduler.
+The key architectural boundary: **the FSRS scheduler decides _persisted_
+scheduling; the session queue decides _what the user sees next this
+sitting_.** #7 changes the session queue, not the scheduler.
 
 ## Approach — the session queue (three options)
 
 **Option A — ephemeral in-tray relearn (recommended MVP).** Keep the
 requeue entirely inside `FlashcardTray` session state:
+
 - The tray holds a working queue (array of card ids). On "Again", the card
   is **re-appended** (e.g. after N intervening cards, or to the end) and
   the user must clear it before the session completes.
@@ -43,7 +44,7 @@ problem needs for MVP.
 **Option C — time-budget session.** User sets a duration; `/fsrs` keeps
 serving due + requeued cards until time elapses or the queue clears.
 Composes with A (A defines requeue; C defines the stop condition). Good as
-an *option on top of* A, not a replacement.
+an _option on top of_ A, not a replacement.
 
 **Recommendation:** **A now, C as an optional mode later.** A delivers the
 feedback loop (R1/R2) with no new persisted state, keeping the scheduler

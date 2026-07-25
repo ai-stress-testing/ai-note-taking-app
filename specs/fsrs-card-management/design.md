@@ -44,6 +44,7 @@ exists if a later spec wants it.
   `deleteCard`, with a confirm to prevent accidental loss).
 
 **3. Edit form.** Kind-specific fields:
+
 - vocab/note/card → `front` (+ `back` where applicable);
 - question → `question` text and a choices editor (text per choice + a
   radio/checkbox for `correct`).

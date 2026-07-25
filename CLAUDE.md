@@ -80,6 +80,13 @@ Zustand + Tailwind v4. Package manager: Bun.
 - Don't reintroduce Lovable-platform-specific code (error reporting hooks,
   cloud AI gateway, sandbox-only vite plugins) — this repo was deliberately
   ejected from that tooling to be a plain, portable Vite/TanStack app.
+- **Changelog & versioning.** Every user-facing change adds a line under
+  `[Unreleased]` in `CHANGELOG.md` (in the appropriate Added/Changed/Fixed/Removed
+  section); any change that bumps the persisted store `version` field
+  (`src/lib/store.ts`) or alters `src/lib/sync-schema.ts` must add a
+  **Changed** entry explicitly naming the migration boundary. On release,
+  `[Unreleased]` is retitled with the new version and date, and `package.json`
+  is bumped to match. See `CHANGELOG.md` header for the full convention.
 
 ## Spec-driven development
 

@@ -27,6 +27,7 @@ import { evaluateExpression } from "@/lib/calc-eval";
 import { markerBlock, removeMarkerBlock, REVIEW_MARKER } from "@/lib/inline-widgets";
 import { InlineWidgetLayer } from "@/components/InlineWidgetLayer";
 import { AmbientWaves } from "@/components/AmbientWaves";
+import { FidgetPad } from "@/components/FidgetPad";
 
 import ogImage from "../../public/og-image.jpg.asset.json";
 
@@ -63,6 +64,35 @@ const CLOSED: SlashState = {
   lineHeight: 0,
   selected: 0,
 };
+
+const SLASH_TOKEN_RE = /^\/[a-zA-Z0-9->]*$/;
+// Defensive cap on how far back a single keystroke re-scans for a "/" —
+// lines are normally short, but this bounds the worst case regardless.
+const SLASH_SCAN_LIMIT = 200;
+
+/**
+ * Finds the "/command" token nearest to (and ending at) the caret, if any.
+ * A "/" only starts a token at line-start or right after whitespace — one
+ * glued to the previous character (a/b, https:/) is prose/a path, not a
+ * command (R4). Scans backward from the caret so the nearest token wins
+ * when a line has more than one "/"-looking thing on it (R5).
+ */
+function findSlashToken(value: string, caret: number): { start: number; token: string } | null {
+  const lineStart = value.lastIndexOf("\n", caret - 1) + 1;
+  const scanFloor = Math.max(lineStart, caret - SLASH_SCAN_LIMIT);
+  for (let i = caret - 1; i >= scanFloor; i--) {
+    const ch = value[i];
+    if (ch === "/") {
+      const before = i === lineStart ? "" : value[i - 1];
+      if (before !== "" && !/\s/.test(before)) return null;
+      const token = value.slice(i, caret);
+      if (!SLASH_TOKEN_RE.test(token)) return null;
+      return { start: i, token };
+    }
+    if (ch !== " " && !/[a-zA-Z0-9->]/.test(ch)) return null;
+  }
+  return null;
+}
 
 function Editor() {
   const {
@@ -105,6 +135,7 @@ function Editor() {
   const [aiQueueOpen, setAiQueueOpen] = useState(false);
   const [reviewIds, setReviewIds] = useState<string[] | null>(null);
   const [localAiAlert, setLocalAiAlert] = useState<null | string>(null);
+  const [fidgetOpen, setFidgetOpen] = useState(false);
   const textareaRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const mirrorRefs = useRef<Array<HTMLPreElement | null>>([]);
 
@@ -158,15 +189,21 @@ function Editor() {
   const detectSlash = useCallback((el: HTMLTextAreaElement) => {
     const caret = el.selectionStart;
     const value = el.value;
-    const lineStart = value.lastIndexOf("\n", caret - 1) + 1;
-    const uptoCaret = value.slice(lineStart, caret);
-    const m = /^(\/[a-zA-Z0-9->]*)$/.exec(uptoCaret);
-    if (!m) {
+    const found = findSlashToken(value, caret);
+    if (!found) {
       setSlash((s) => (s.open ? CLOSED : s));
       return;
     }
-    const { x, y, lineHeight } = getCaretCoords(el, lineStart);
-    setSlash({ open: true, query: m[1], startIdx: lineStart, x, y, lineHeight, selected: 0 });
+    const { x, y, lineHeight } = getCaretCoords(el, found.start);
+    setSlash({
+      open: true,
+      query: found.token,
+      startIdx: found.start,
+      x,
+      y,
+      lineHeight,
+      selected: 0,
+    });
   }, []);
 
   const insertAtRange = useCallback(
@@ -183,6 +220,24 @@ function Editor() {
       });
     },
     [activeFileId, focusedPane, setContent],
+  );
+
+  /**
+   * Every `tpl:*` block template assumes it opens on a fresh line. That's
+   * true by construction when a command occupies the whole line, but once
+   * commands can be typed mid-line (after other prose), the template needs
+   * a leading newline so it doesn't glue itself to the prefix text. One
+   * place owns that check instead of every `tpl:*` branch repeating it.
+   */
+  const insertBlockAtRange = useCallback(
+    (from: number, to: number, tpl: string, caretOffset?: number) => {
+      const cur = useStore.getState().files[activeFileId]?.content ?? "";
+      const needsLeadingNl = from > 0 && cur[from - 1] !== "\n";
+      const prefix = needsLeadingNl ? "\n" : "";
+      const moveTo = caretOffset === undefined ? undefined : prefix.length + caretOffset;
+      insertAtRange(from, to, prefix + tpl, moveTo);
+    },
+    [activeFileId, insertAtRange],
   );
 
   const runEndSession = useCallback(
@@ -496,7 +551,7 @@ function Editor() {
             const caretOffset = args
               ? (header + partHeader + FIRST_CHOICE_PREFIX).length
               : header.length - 1;
-            insertAtRange(lineStart, lineEnd, tpl, caretOffset);
+            insertBlockAtRange(lineStart, lineEnd, tpl, caretOffset);
             return;
           }
           case "tpl:part": {
@@ -505,22 +560,22 @@ function Editor() {
             const header = `\nPart ${letter}: ${args || ""}\n`;
             const choices = choiceLines();
             const tpl = header + choices;
-            insertAtRange(lineStart, lineEnd, tpl, header.length + FIRST_CHOICE_PREFIX.length);
+            insertBlockAtRange(lineStart, lineEnd, tpl, header.length + FIRST_CHOICE_PREFIX.length);
             return;
           }
           case "tpl:calc": {
             const tpl = `── Calc ──────────────────────────────────────────\n  ${args || ""}`;
-            insertAtRange(lineStart, lineEnd, tpl);
+            insertBlockAtRange(lineStart, lineEnd, tpl);
             return;
           }
           case "tpl:math": {
             const tpl = `── Math ──────────────────────────────────────────\n  ${args || ""}`;
-            insertAtRange(lineStart, lineEnd, tpl);
+            insertBlockAtRange(lineStart, lineEnd, tpl);
             return;
           }
           case "tpl:help": {
             const tpl = `── Help ──────────────────────────────────────────\n  ${args || ""}`;
-            insertAtRange(lineStart, lineEnd, tpl);
+            insertBlockAtRange(lineStart, lineEnd, tpl);
             return;
           }
           case "tpl:close": {
@@ -536,35 +591,40 @@ function Editor() {
                 `${created.length} card${created.length === 1 ? "" : "s"} added to the review deck`,
               );
             }
-            insertAtRange(lineStart, lineEnd, CLOSE_RULE_TEXT);
+            // The AI follow-ups below anchor their own inserts off of where
+            // the rule text actually starts — not the token start — so a
+            // leading newline (mid-line close) doesn't throw off their math.
+            const needsLeadingNl = lineStart > 0 && buffer[lineStart - 1] !== "\n";
+            insertAtRange(lineStart, lineEnd, (needsLeadingNl ? "\n" : "") + CLOSE_RULE_TEXT);
+            const ruleAt = lineStart + (needsLeadingNl ? 1 : 0);
             if (enclosing?.marker === "── Note " && enclosing.body) {
-              await summarizeNote(enclosing.body, lineStart);
+              await summarizeNote(enclosing.body, ruleAt);
             } else if (enclosing?.marker === "── Math " && enclosing.body) {
-              await correctMath(enclosing.body, lineStart);
+              await correctMath(enclosing.body, ruleAt);
             } else if (enclosing?.marker === "── Calc " && enclosing.body) {
-              await verifyCalc(enclosing.body, lineStart);
+              await verifyCalc(enclosing.body, ruleAt);
             } else if (enclosing?.marker === "── Help ") {
-              await helpNudge(enclosing.body, lineStart);
+              await helpNudge(enclosing.body, ruleAt);
             } else if (enclosing?.marker === "── Question " && created.length > 0) {
-              await gradeQuestions(created, lineStart);
+              await gradeQuestions(created, ruleAt);
             }
             return;
           }
           case "tpl:note": {
             const header = `── Note ──────────────────────────────────────────\n`;
             const tpl = `${header}${args ? args + "\n" : "  "}`;
-            insertAtRange(lineStart, lineEnd, tpl);
+            insertBlockAtRange(lineStart, lineEnd, tpl);
             return;
           }
           case "tpl:vocab": {
             incSessionCount("vocab");
             const tpl = `── Vocab ─────────────────────────────────────────\n  term:       ${args || ""}\n  definition: \n  example:    \n`;
-            insertAtRange(lineStart, lineEnd, tpl);
+            insertBlockAtRange(lineStart, lineEnd, tpl);
             return;
           }
           case "tpl:card": {
             const tpl = `── Card ──────────────────────────────────────────\n  front: ${args || ""}\n  back:  \n`;
-            insertAtRange(lineStart, lineEnd, tpl);
+            insertBlockAtRange(lineStart, lineEnd, tpl);
             return;
           }
           case "tpl:fsrs": {
@@ -589,7 +649,7 @@ function Editor() {
             const cur = useStore.getState().files[activeFileId]?.content ?? "";
             const cleaned = removeMarkerBlock(cur, REVIEW_MARKER);
             if (cleaned !== cur) setContent(activeFileId, cleaned);
-            insertAtRange(lineStart, lineEnd, markerBlock(REVIEW_MARKER, 340));
+            insertBlockAtRange(lineStart, lineEnd, markerBlock(REVIEW_MARKER, 340));
             setReviewIds(due.map((c) => c.id));
             return;
           }
@@ -627,8 +687,14 @@ function Editor() {
 
           case "tpl:canvas": {
             const id = addCanvas(activeFileId);
-            insertAtRange(lineStart, lineEnd, markerBlock(`⟦canvas:${id}⟧`, 260));
+            insertBlockAtRange(lineStart, lineEnd, markerBlock(`⟦canvas:${id}⟧`, 260));
             toast.success("Canvas added at this line");
+            return;
+          }
+
+          case "fidget": {
+            setFidgetOpen(true);
+            insertAtRange(lineStart, lineEnd, "");
             return;
           }
 
@@ -658,6 +724,7 @@ function Editor() {
     [
       activeFileId,
       insertAtRange,
+      insertBlockAtRange,
       setContent,
       setPanes,
       incSessionCount,
@@ -679,16 +746,17 @@ function Editor() {
       if (!el) return;
       const caret = el.selectionStart;
       const value = el.value;
-      const lineStart = value.lastIndexOf("\n", caret - 1) + 1;
-      const lineEnd = value.indexOf("\n", caret);
-      const endIdx = lineEnd === -1 ? value.length : lineEnd;
-      const line = value.slice(lineStart, endIdx);
+      // Replace only the command token (slash.startIdx -> caret), not the
+      // whole line — text before the token and after the caret survives.
+      const tokenStart = slash.startIdx;
+      const tokenEnd = caret;
+      const line = value.slice(tokenStart, tokenEnd);
       setSlash(CLOSED);
       const m = /^(\/[a-zA-Z0-9->]+)(?:\s+(.*))?$/.exec(line);
       const argsFromLine = m?.[2]?.trim() ?? "";
-      executeCommand(cmd, argsFromLine, lineStart, endIdx);
+      executeCommand(cmd, argsFromLine, tokenStart, tokenEnd);
     },
-    [executeCommand, focusedPane],
+    [executeCommand, focusedPane, slash.startIdx],
   );
 
   const onKeyDown = useCallback(
@@ -987,6 +1055,7 @@ function Editor() {
       <DownloadModal open={downloadOpen} onClose={() => setDownloadOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <AiQueueModal open={aiQueueOpen} onClose={() => setAiQueueOpen(false)} />
+      {fidgetOpen && <FidgetPad onClose={() => setFidgetOpen(false)} />}
       <LocalAiAlert
         open={localAiAlert !== null}
         message={localAiAlert ?? ""}

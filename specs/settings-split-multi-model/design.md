@@ -67,7 +67,7 @@ form still mounts fresh on open (the existing fix stays).
 
 - **Keep the flat fields, just add a few "saved presets" you copy from.**
   Rejected: that's still one live config; R1/R2 want the active model to
-  *be* a selected registry entry, not a copy-paste source.
+  _be_ a selected registry entry, not a copy-paste source.
 - **Sync the model registry across devices.** Rejected for MVP: servers/
   models are device-specific (localhost URLs differ per machine); syncing
   them would push a laptop's `localhost:11434` onto a phone. Device-local

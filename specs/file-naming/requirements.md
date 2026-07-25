@@ -3,7 +3,7 @@
 ## Problem
 
 New files are auto-named by position: `createFile` (`src/lib/store.ts`)
-sets `name = \`${folderName}-${count}.md\`` where `count` is the current
+sets `name = \`${folderName}-${count}.md\``where`count` is the current
 number of files in the folder + 1. Two problems:
 
 1. **Collision / drift after deletion.** `count` is derived from the
@@ -17,7 +17,7 @@ number of files in the folder + 1. Two problems:
 
 Files DO already have a stable unique `id` (`file-${uid()}`) — that part of
 #15 ("unique identifier") is satisfied by the data model; the gap is that
-the *name* is neither reliably unique nor easily user-set.
+the _name_ is neither reliably unique nor easily user-set.
 
 ## Requirements
 

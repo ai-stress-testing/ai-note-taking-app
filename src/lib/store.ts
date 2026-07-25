@@ -473,9 +473,14 @@ export const useStore = create<State>()(
           const now = Date.now();
           const folder = get().folders.find((f) => f.id === folderId);
           const prefix = folder?.name ?? "note";
-          const count =
-            Object.values(get().files).filter((f) => f.folderId === folderId).length + 1;
-          const finalName = name ?? `${prefix}-${count}.md`;
+          const namesInFolder = new Set(
+            Object.values(get().files)
+              .filter((f) => f.folderId === folderId)
+              .map((f) => f.name),
+          );
+          let n = namesInFolder.size + 1;
+          while (namesInFolder.has(`${prefix}-${n}.md`)) n++;
+          const finalName = name ?? `${prefix}-${n}.md`;
           set((s) => ({
             files: {
               ...s.files,

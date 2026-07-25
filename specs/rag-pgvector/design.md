@@ -13,7 +13,7 @@ make `/help` retrieval-augmented, additive and opt-in.
 ## The central tension (R6): vectors vs end-to-end encryption
 
 Semantic search needs vectors that preserve meaning; E2E sync deliberately
-gives the server only opaque ciphertext. You cannot have the *same* server
+gives the server only opaque ciphertext. You cannot have the _same_ server
 both blind to content and able to rank it by meaning. Three ways out:
 
 - **Option A — Local-trust RAG (recommended for MVP).** The pgvector
@@ -21,8 +21,8 @@ both blind to content and able to rank it by meaning. Three ways out:
   trust boundary as their local AI server and their own machine). Vectors
   and the small plaintext chunks needed to build `/note` scaffolds live in
   Postgres on that trusted host. RAG is only available when the user runs
-  this local service; it is explicitly a *local-trust* feature, decoupled
-  from the *remote* encrypted sync. Sync stays E2E and untouched; RAG does
+  this local service; it is explicitly a _local-trust_ feature, decoupled
+  from the _remote_ encrypted sync. Sync stays E2E and untouched; RAG does
   not push plaintext to any remote. Documented plainly: "RAG indexes run on
   a host you trust; don't point it at an untrusted server."
 - **Option B — Encrypted-at-rest vectors, client-side similarity.** Store
@@ -50,7 +50,7 @@ hidden. Revisit C only if RAG must run on an untrusted remote.
   metadata/sync-merge (unchanged), Postgres/pgvector for embeddings — the
   design keeps them separate rather than migrating SQLite.
 - **Schema:** `chunks(id, source_kind, source_id, file_id, chunk_ix,
-  text, embedding vector(N), updated_at)` with an ivfflat/hnsw index on
+text, embedding vector(N), updated_at)` with an ivfflat/hnsw index on
   `embedding`. `N` = the local embedding model's dimension (configurable;
   detected from a probe).
 - **Embedding flow (R2, R5):** a new `queueEmbedding` path reusing

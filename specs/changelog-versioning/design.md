@@ -35,14 +35,14 @@ Two files and one convention, no tooling:
 ## Data model changes
 
 None. `package.json` gains a `version` field; no runtime store/schema
-change. (The *convention* references the existing store `version`/`migrate`
+change. (The _convention_ references the existing store `version`/`migrate`
 and `sync-schema`, but adds nothing to them.)
 
 ## Alternatives considered
 
 - **changesets / semantic-release.** Rejected (non-goal): automation
   overhead unjustified for a single-maintainer local-first app.
-- **Date-based (CalVer).** Rejected: SemVer communicates *compatibility*,
+- **Date-based (CalVer).** Rejected: SemVer communicates _compatibility_,
   which is exactly what the store-migration/sync-schema concern needs;
   CalVer communicates recency, which the changelog dates already give.
 - **Version derived from git tags at build.** Rejected for now: adds a

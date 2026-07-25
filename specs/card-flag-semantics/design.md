@@ -5,8 +5,8 @@
 `Card.flagged` already exists as a synced boolean (`src/lib/store.ts`,
 `syncCardSchema` in `src/lib/sync-schema.ts`), with `toggleCardFlag`
 already wired into the review tray. The data model is correct; what's wrong
-is the *meaning attached to it in copy* and the *absence of a place to act
-on it*. So this is mostly a copy/semantics correction plus a hand-off
+is the _meaning attached to it in copy_ and the _absence of a place to act
+on it_. So this is mostly a copy/semantics correction plus a hand-off
 boundary to the management view — deliberately not a data change.
 
 ## Approach
@@ -15,7 +15,7 @@ boundary to the management view — deliberately not a data change.
 
 - `src/components/FlashcardTray.tsx`: change the flag button `title` from
   "come back to" wording to source-maintenance wording, e.g.
-  *"Flag: source content may be outdated"* / *"Unflag"*. `aria-pressed`
+  _"Flag: source content may be outdated"_ / _"Unflag"_. `aria-pressed`
   stays.
 - `src/routes/analytics.tsx`: the "N flagged" tile label should read as
   "needs review/maintenance" rather than implying a recall queue. Keep it
@@ -27,7 +27,7 @@ boundary to the management view — deliberately not a data change.
 
 ### 2. Surface flagged cards (boundary with #8)
 
-The mechanism to *list and operate on* flagged cards is the management
+The mechanism to _list and operate on_ flagged cards is the management
 view specified in `specs/fsrs-card-management/`. This spec fixes only the
 contract that view relies on:
 
@@ -38,7 +38,7 @@ contract that view relies on:
   store code needed here.
 
 No new store action, selector abstraction, or component is introduced by
-*this* spec. If the management view wants a memoized `flaggedCards`
+_this_ spec. If the management view wants a memoized `flaggedCards`
 selector it defines it there; wrapping a one-line `.filter` in a shared
 selector is below the bar the decision ladder sets.
 
@@ -51,14 +51,14 @@ sufficient. No migration, no new field, no schema bump.
 
 - **Add a second field to separate "outdated source" from "review again".**
   Rejected: no requirement asks for two markers, and the issue is explicit
-  that the existing flag *is* the source-maintenance marker. Adding a field
+  that the existing flag _is_ the source-maintenance marker. Adding a field
   would mean a `Card` type change, a `syncCardSchema` change, and a
   migration — all to model a concept nobody asked for (YAGNI).
 - **Auto-clear the flag on edit.** Rejected as the default (see edge case):
   the human decides when maintenance is complete; auto-clearing on any
   edit would silently drop the signal after a trivial typo fix.
 - **Make flagging bias FSRS (e.g. resurface sooner).** Rejected: violates
-  the boundary that flagging is about the *artifact*, not the *memory*;
+  the boundary that flagging is about the _artifact_, not the _memory_;
   scheduling must stay owned by `fsrs.ts`.
 
 ## Open questions

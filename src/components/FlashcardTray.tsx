@@ -50,8 +50,15 @@ export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => 
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [entering, setEntering] = useState(true);
+  const [ratedCount, setRatedCount] = useState(0);
+  const [againCount, setAgainCount] = useState(0);
 
   const queue = useMemo(() => ids.filter((id) => cards[id]), [ids, cards]);
+  const [sessionSize] = useState(() => queue.length);
+  const dueRemaining = useMemo(
+    () => Object.values(cards).filter((c) => c.fsrs.dueAt <= Date.now()).length,
+    [cards],
+  );
   const card = queue[index] ? cards[queue[index]] : undefined;
   const done = index >= queue.length;
 
@@ -69,6 +76,8 @@ export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => 
   const rate = (rating: FsrsRating) => {
     if (!card) return;
     rateCard(card.id, rating);
+    setRatedCount((n) => n + 1);
+    if (rating === 1) setAgainCount((n) => n + 1);
     advance();
   };
 
@@ -88,11 +97,24 @@ export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => 
   });
 
   if (done) {
+    const caughtUp = dueRemaining === 0;
+    const core =
+      ratedCount === sessionSize
+        ? `${ratedCount} reviewed`
+        : `${ratedCount} of ${sessionSize} reviewed`;
     return (
       <div className="ed-fc-tray" role="region" aria-label="Review session">
         <div className="ed-fc-done">
-          <span className="ed-fc-done-mark">✓</span> all caught up — {queue.length} card
-          {queue.length === 1 ? "" : "s"} reviewed
+          {caughtUp ? (
+            <>
+              <span className="ed-fc-done-mark">✓</span> caught up · {core}
+            </>
+          ) : (
+            <>
+              {core} · {dueRemaining} still due
+              {againCount > 0 ? ` (${againCount} marked again)` : ""} — /fsrs for more
+            </>
+          )}
           <button className="ed-btn ghost" onClick={onClose}>
             close
           </button>
@@ -117,7 +139,7 @@ export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => 
         <button
           className={`ed-fc-flag ${card.flagged ? "on" : ""}`}
           onClick={() => toggleCardFlag(card.id)}
-          title={card.flagged ? "Unflag this card" : "Flag this card to come back to"}
+          title={card.flagged ? "Unflag" : "Flag: source content may be outdated"}
           aria-pressed={card.flagged}
         >
           ⚑

@@ -150,6 +150,12 @@ export const COMMANDS: CommandDef[] = [
   },
 
   // ── Buffer / IO ─────────────────────────────────
+  {
+    name: "/fidget",
+    description: "Open a throwaway scratch pad (never saved)",
+    ai: false,
+    localHint: "fidget",
+  },
   { name: "/export", description: "Download workspace", ai: false, localHint: "export" },
   {
     name: "/export-md",

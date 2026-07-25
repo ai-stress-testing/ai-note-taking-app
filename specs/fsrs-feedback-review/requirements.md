@@ -13,13 +13,13 @@ understood. Issue #7:
 
 1. A card rated "Again" (rating 1) gets the ~10-minute minimum interval
    (`MIN_INTERVAL_DAYS`) and leaves the session; the user never re-attempts
-   it *now*, so a missed card isn't actually relearned this sitting.
+   it _now_, so a missed card isn't actually relearned this sitting.
 2. Completion is guaranteed 10/10 when it should be **(10 + m)/10** where
    `m` = cards misunderstood — missed cards should add work, not vanish.
 3. The deck ships **8 boilerplate seed cards** (`seedCards()`,
    `cardsSeeded`) that clutter a real user's deck.
-4. The session should feel like Anki — you leave when you've *properly
-   reviewed*, driven by the queue (and optionally time), not by a fixed
+4. The session should feel like Anki — you leave when you've _properly
+   reviewed_, driven by the queue (and optionally time), not by a fixed
    count.
 
 ## Requirements
@@ -33,12 +33,12 @@ understood. Issue #7:
   (10 + m)/10.
 - R3. Honest accounting: the session reports attempts, cards that needed a
   requeue, and true completion (ties to `specs/fsrs-session-review-count/`,
-  which fixes the *messaging*; this spec provides the *behavior* behind it).
+  which fixes the _messaging_; this spec provides the _behavior_ behind it).
 - R4. **Remove the boilerplate seed cards** so new profiles start with an
   empty (or explicitly opt-in) deck; existing users' real cards are
   untouched.
 - R5. The FSRS scheduler math (`fsrs.ts` intervals/stability/difficulty)
-  stays authoritative for *persisted* scheduling — intra-session requeue is
+  stays authoritative for _persisted_ scheduling — intra-session requeue is
   an ephemeral session-queue concern, not a mutation of the scheduler.
 - R6. Review logging remains coherent for analytics (decide whether each
   attempt or only the terminal rating writes to `reviewLogs`).

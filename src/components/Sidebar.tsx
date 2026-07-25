@@ -151,6 +151,7 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
                   const n = prompt("Rename file", f.name);
                   if (n && n.trim()) renameFile(f.id, n.trim());
                 }}
+                title="Double-click to rename"
               >
                 <span className="ed-side-file-icon">≡</span>
                 <span className="ed-side-file-name">{f.name}</span>

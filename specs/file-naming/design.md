@@ -6,12 +6,14 @@ Small, two-part change: fix the default-name generator, and surface the
 existing rename action.
 
 **1. Collision-safe default name.** Replace the `count = (files in folder)
-+ 1` scheme in `createFile` with one that can't reuse a name after
-deletion. Options (design picks one):
-- **Monotonic per-folder counter**: a `fileSeq` (or per-folder next-index)
+
+- 1`scheme in`createFile` with one that can't reuse a name after
+  deletion. Options (design picks one):
+
+* **Monotonic per-folder counter**: a `fileSeq` (or per-folder next-index)
   persisted in the store, incremented on create, never reused. Deterministic
   human names (`notes-4.md`) that keep climbing.
-- **Uniqueness-checked default**: generate `${prefix}-${n}.md`, incrementing
+* **Uniqueness-checked default**: generate `${prefix}-${n}.md`, incrementing
   `n` until no file in the folder has that name. No new persisted state;
   O(files) per create (trivially cheap here).
 

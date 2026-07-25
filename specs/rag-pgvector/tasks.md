@@ -4,6 +4,7 @@
 > documented trust-boundary decision). Phases are independently shippable.
 
 ## Phase 0 — plumbing
+
 - [ ] Add a `pgvector` service to `docker-compose.yml` (opt-in profile) with
       its own volume on the app network.
 - [ ] Add a Postgres client dep + `src/lib/server/rag.ts`; create the
@@ -15,6 +16,7 @@
 - [ ] Verify a note round-trips text → vector → nearest-neighbor search.
 
 ## Phase 1 — retrieval-augmented nudge
+
 - [ ] Debounced indexing hook (reuse the sync debounce) that chunks + embeds
       changed notes and upserts; purge on delete/personal-toggle.
 - [ ] Extend `helpNudge`: embed the question/focus, `POST /api/rag/search`
@@ -23,12 +25,14 @@
       today).
 
 ## Phase 2 — the learning harness
+
 - [ ] On `/help`, `/split` the view and insert relevant `/note` line-items
       built from retrieved chunks as scaffolding.
 - [ ] Make scaffolds legible/removable; confirm they improve (not leak) the
       nudge.
 
 ## Cross-cutting
+
 - [ ] Privacy: personal files never indexed/retrieved (test the retroactive
       purge on toggle).
 - [ ] Docs: README + CHANGELOG note the opt-in service and the local-trust

@@ -16,7 +16,7 @@ Two issues bundled in #5:
 
 (Note: an earlier stale-snapshot save bug that reverted settings on reload
 has already been fixed — the form now mounts fresh on open. This spec is
-about the *registry* and the *view split*, not that bug.)
+about the _registry_ and the _view split_, not that bug.)
 
 ## Requirements
 
@@ -47,7 +47,7 @@ about the *registry* and the *view split*, not that bug.)
 - Per-file or per-command model routing (one active model for the app;
   the verify model is the only purpose-split).
 - Auto-discovery of installed models beyond the existing "test connection"
-  probe (which can *inform* a picker but isn't required to populate it).
+  probe (which can _inform_ a picker but isn't required to populate it).
 - Secrets management (local servers here don't need API keys; don't build a
   key vault).
 

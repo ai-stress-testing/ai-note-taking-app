@@ -46,7 +46,7 @@ or who has more than 10 cards due. That is the common case, not an edge.
 
 - Re-inserting missed ("again") cards into the same session. That is the
   feedback-loop redesign in `specs/fsrs-feedback-review/`; this spec only
-  makes the *reporting* honest for the current feedforward flow, and is
+  makes the _reporting_ honest for the current feedforward flow, and is
   intentionally scoped so it can ship before that larger change.
 - Changing how many cards `/fsrs` pulls, or the FSRS math.
 - Any analytics-page copy (that page reports totals, not per-session).

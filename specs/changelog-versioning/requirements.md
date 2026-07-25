@@ -21,7 +21,7 @@ trying to understand history.
 - R2. Add a `CHANGELOG.md` following the Keep a Changelog format
   (Unreleased section + dated released sections; Added/Changed/Fixed/
   Removed groupings).
-- R3. A lightweight, written convention for *when and how* an entry is
+- R3. A lightweight, written convention for _when and how_ an entry is
   added (per user-facing change; where the store `version`/`migrate` and
   `sync-schema` bumps get called out — those are the "dicey overhaul"
   boundaries #2 is worried about).

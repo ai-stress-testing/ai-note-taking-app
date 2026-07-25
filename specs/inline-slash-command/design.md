@@ -18,7 +18,7 @@ const uptoCaret = value.slice(lineStart, caret);
 const m = /^(\/[a-zA-Z0-9->]*)$/.exec(uptoCaret);
 ```
 
-This anchors to `lineStart` and requires the *entire* line-so-far to be the
+This anchors to `lineStart` and requires the _entire_ line-so-far to be the
 token — which is exactly why prose before a `/` breaks it. The fix: instead
 of anchoring to the line start, scan backward from the caret for the
 nearest `/` that's a valid token boundary, then validate forward from there
@@ -59,7 +59,15 @@ const detectSlash = useCallback((el: HTMLTextAreaElement) => {
     return;
   }
   const { x, y, lineHeight } = getCaretCoords(el, found.start);
-  setSlash({ open: true, query: found.token, startIdx: found.start, x, y, lineHeight, selected: 0 });
+  setSlash({
+    open: true,
+    query: found.token,
+    startIdx: found.start,
+    x,
+    y,
+    lineHeight,
+    selected: 0,
+  });
 }, []);
 ```
 
@@ -74,7 +82,7 @@ need to change shape. `SlashState` keeps its existing fields.
 Today `commitCompletion` recomputes `lineStart`/`endIdx` itself (independent
 of `slash.startIdx`) and hands the whole line to `executeCommand`, which
 then does `insertAtRange(lineStart, lineEnd, tpl)` — i.e. every command
-template replaces the *entire line*, prefix text included. That's fine
+template replaces the _entire line_, prefix text included. That's fine
 today because a command can only ever be the entire line. Once commands can
 appear mid-line, replacing the whole line would eat the prefix text R3
 requires to survive.
@@ -140,7 +148,7 @@ the token start) is exactly what start-of-line detection did too
 
 ### Enter-to-commit whole-line path (R6)
 
-`onKeyDown`'s Enter handler (the non-menu path, for a line that's *already*
+`onKeyDown`'s Enter handler (the non-menu path, for a line that's _already_
 a complete `/cmd args` line, e.g. pasted or typed and Enter pressed
 immediately) stays scoped to `findCommand(line)` against the full line, as
 today — this path is specifically "the whole line is a command," which is
@@ -148,7 +156,7 @@ unaffected by inline detection of partial tokens while typing.
 
 ## Data model changes
 
-None. `SlashState` is unchanged in shape; `startIdx`'s *meaning* shifts
+None. `SlashState` is unchanged in shape; `startIdx`'s _meaning_ shifts
 from "line start" to "token start," which happens to be the same value in
 every case that worked before.
 

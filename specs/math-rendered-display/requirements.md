@@ -11,7 +11,7 @@ expression. Issue #6: "math is represented as text and not the corrected
 view" — the correction happens, but the payoff (readable math) doesn't.
 
 The editor is a plain `<textarea>` mirrored by a `<pre class="ed-mirror">`
-for caret-aligned syntax highlighting. Rendered math cannot live *inside*
+for caret-aligned syntax highlighting. Rendered math cannot live _inside_
 the editable buffer (it must stay plain text for editing/caret math), so
 the core question is **where** rendered math appears.
 

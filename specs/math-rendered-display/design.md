@@ -27,6 +27,7 @@ LaTeX (or a reference), and have `InlineWidgetLayer` render a
 `<MathBlock latex=...>` over it via KaTeX. The raw LaTeX remains in the
 note text (inside the marker/source) so it stays editable and syncs as
 plain text (R3); the overlay is pure presentation.
+
 - Alternative lighter surface (design-time choice): render into the
   existing result block region as a non-editable rendered span positioned
   by the widget layer, keeping the `$...$` source in the buffer as the

@@ -54,7 +54,7 @@ attribute everywhere.
 - Grammar checking, style suggestions, or anything beyond spelling —
   out of scope for this issue.
 - Per-file or per-folder spellcheck toggles. The split in R3 is by
-  *surface* (note body vs. settings field), a fixed decision per input,
+  _surface_ (note body vs. settings field), a fixed decision per input,
   not a user-facing preference to manage per file.
 - Custom dictionaries / adding study/vocab terms so they stop being
   flagged. Native browser spellcheck has no API this app can hook to add
