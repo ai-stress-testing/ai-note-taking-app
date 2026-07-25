@@ -1004,7 +1004,9 @@ function Editor() {
                             ? `-- ${b.name} --\n\nPress / for commands.\nTry: /question, /canvas, /split, /help.\n⌘N new file · ⌘B toggle sidebar.`
                             : ""
                         }
-                        spellCheck={false}
+                        spellCheck
+                        autoCorrect="on"
+                        autoCapitalize="sentences"
                       />
                       {hydrated && (
                         <InlineWidgetLayer
