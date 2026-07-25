@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useStore, type Card } from "@/lib/store";
 import { reviewCard, type FsrsRating } from "@/lib/fsrs";
 
@@ -62,6 +63,13 @@ export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => 
   const card = queue[index] ? cards[queue[index]] : undefined;
   const done = index >= queue.length;
 
+  // Early close (× before the queue is exhausted) must still report the
+  // honest partial count — otherwise closing mid-session silently drops it.
+  const closeWithSummary = () => {
+    if (!done && ratedCount > 0) toast(`${ratedCount} of ${sessionSize} reviewed`);
+    onClose();
+  };
+
   const advance = () => {
     setRevealed(false);
     setEntering(false);
@@ -97,7 +105,10 @@ export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => 
   });
 
   if (done) {
-    const caughtUp = dueRemaining === 0;
+    // "again" cards are rescheduled ~10 min out, so they leave dueRemaining
+    // (a <= now filter) — caught-up must also require none were marked again,
+    // or an all-"again" session would falsely claim completion.
+    const caughtUp = dueRemaining === 0 && againCount === 0;
     const core =
       ratedCount === sessionSize
         ? `${ratedCount} reviewed`
@@ -111,8 +122,9 @@ export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => 
             </>
           ) : (
             <>
-              {core} · {dueRemaining} still due
-              {againCount > 0 ? ` (${againCount} marked again)` : ""} — /fsrs for more
+              {core}
+              {dueRemaining > 0 ? ` · ${dueRemaining} still due` : ""}
+              {againCount > 0 ? ` · ${againCount} marked again` : ""} — /fsrs for more
             </>
           )}
           <button className="ed-btn ghost" onClick={onClose}>
@@ -144,7 +156,7 @@ export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => 
         >
           ⚑
         </button>
-        <button className="ed-modal-x" onClick={onClose} aria-label="Close review">
+        <button className="ed-modal-x" onClick={closeWithSummary} aria-label="Close review">
           ×
         </button>
       </div>
