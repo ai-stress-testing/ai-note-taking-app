@@ -203,6 +203,10 @@ type State = {
   ) => void;
   deleteCard: (id: string) => void;
   toggleCardFlag: (id: string) => void;
+  updateCard: (
+    id: string,
+    patch: Partial<Pick<Card, "question" | "choices" | "front" | "back">>,
+  ) => void;
 
   // ── sync / persistence backend
   tombstones: Tombstone[];
@@ -430,6 +434,27 @@ export const useStore = create<State>()(
                 }
               : s,
           ),
+        updateCard: (id, patch) =>
+          set((s) => {
+            const card = s.cards[id];
+            if (!card) return s;
+            // A content edit invalidates any prior AI verdict on this question —
+            // leave it visibly ungraded until re-closed in the editor (R5/edge case).
+            const clearGrading = "question" in patch || "choices" in patch;
+            return {
+              cards: {
+                ...s.cards,
+                [id]: {
+                  ...card,
+                  ...patch,
+                  updatedAt: Date.now(),
+                  ...(clearGrading
+                    ? { gradedCorrect: undefined, gradedSummary: undefined, gradedTags: undefined }
+                    : {}),
+                },
+              },
+            };
+          }),
 
         setSyncConfig: (patch) => set((s) => ({ ...s, ...patch })),
         setSyncRuntime: (patch) => set((s) => ({ ...s, ...patch })),

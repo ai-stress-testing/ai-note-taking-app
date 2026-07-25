@@ -1715,3 +1715,154 @@ kbd {
   color: var(--ctp-overlay0);
   font-size: 12px;
 }
+
+/* ============================================================
+   Analytics · card management (specs/fsrs-card-management)
+   ============================================================ */
+.an-cm-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.an-cm-chip {
+  background: var(--ctp-mantle);
+  color: var(--ctp-subtext0);
+  border: 1px solid var(--ctp-surface0);
+  border-radius: 999px;
+  padding: 3px 11px;
+  font-size: 11px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+.an-cm-chip:hover {
+  border-color: var(--ctp-surface2);
+  color: var(--ctp-text);
+}
+.an-cm-chip.active {
+  background: color-mix(in oklab, var(--ctp-mauve) 16%, var(--ctp-mantle));
+  border-color: var(--ctp-mauve);
+  color: var(--ctp-text);
+}
+.an-cm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.an-cm-row {
+  background: var(--ctp-mantle);
+  border: 1px solid var(--ctp-surface0);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.an-cm-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.an-cm-kind {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ctp-overlay1);
+  border: 1px solid var(--ctp-surface1);
+  border-radius: 4px;
+  padding: 1px 6px;
+  flex: none;
+}
+.an-cm-kind.k-question {
+  color: var(--ctp-sapphire);
+}
+.an-cm-kind.k-vocab {
+  color: var(--ctp-green);
+}
+.an-cm-kind.k-note {
+  color: var(--ctp-peach);
+}
+.an-cm-text {
+  flex: 1;
+  color: var(--ctp-text);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.an-cm-due {
+  color: var(--ctp-overlay1);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.an-cm-file {
+  color: var(--ctp-overlay0);
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  flex: none;
+}
+.an-cm-del:hover {
+  color: var(--ctp-red);
+  border-color: color-mix(in oklab, var(--ctp-red) 40%, transparent);
+}
+.an-cm-edit {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--ctp-surface0);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.an-cm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10.5px;
+  color: var(--ctp-overlay1);
+}
+.an-cm-field textarea {
+  background: var(--ctp-base);
+  border: 1px solid var(--ctp-surface0);
+  border-radius: 5px;
+  color: var(--ctp-text);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 6px 8px;
+  min-height: 2.4rem;
+  resize: vertical;
+}
+.an-cm-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.an-cm-choice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.an-cm-choice-row input[type="text"] {
+  flex: 1;
+  background: var(--ctp-base);
+  border: 1px solid var(--ctp-surface0);
+  border-radius: 5px;
+  color: var(--ctp-text);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 5px 8px;
+}
+.an-cm-choice-row input[type="checkbox"] {
+  accent-color: var(--ctp-green);
+  flex: none;
+}
+.an-cm-error {
+  color: var(--ctp-red);
+  font-size: 11px;
+  margin: 0;
+}
+.an-cm-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

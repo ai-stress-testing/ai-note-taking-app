@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useStore, fmtDuration } from "@/lib/store";
 import { RATING_LABELS, type FsrsRating } from "@/lib/fsrs";
+import { CardManagement } from "@/components/CardManagement";
 
 export const Route = createFileRoute("/analytics")({
   head: () => ({ meta: [{ title: "NeuroVim — Analytics" }] }),
@@ -224,6 +225,8 @@ function AnalyticsPage() {
           ))
         )}
       </section>
+
+      <CardManagement />
     </div>
   );
 }
