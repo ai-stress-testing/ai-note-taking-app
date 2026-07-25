@@ -27,6 +27,16 @@ export type Folder = {
 export type AiSource = "local";
 export type AiStatus = "idle" | "busy" | "ok" | "err";
 
+/** One configured local AI server + model. Device-local, never synced. */
+export type AiModelConfig = {
+  id: string;
+  label: string;
+  url: string;
+  model: string;
+  /** Optional smaller/faster model for math/calc/grading verification. */
+  verifyModel?: string;
+};
+
 export type SessionEventType = "start" | "break" | "resume" | "end";
 export type SessionEvent = { type: SessionEventType; at: number };
 
@@ -126,10 +136,9 @@ type State = {
 
   /** Any OpenAI-compatible local server: Ollama, LM Studio, llama.cpp, vLLM, etc. */
   localAiEnabled: boolean;
-  localAiUrl: string;
-  localAiModel: string;
-  /** Optional smaller/faster model for math/calc/grading verification ("" = use primary). */
-  verifyAiModel: string;
+  /** Registry of configured servers/models; the pipeline always reads the active one. */
+  aiModels: AiModelConfig[];
+  activeAiModelId: string;
 
   sessionEvents: SessionEvent[];
   sessionCounts: SessionCounts;
@@ -168,9 +177,12 @@ type State = {
 
   setContent: (fileId: string, content: string) => void;
   setAiStatus: (s: AiStatus, source?: AiSource | null) => void;
-  setLocalAi: (
-    patch: Partial<Pick<State, "localAiEnabled" | "localAiUrl" | "localAiModel" | "verifyAiModel">>,
-  ) => void;
+  setLocalAi: (patch: Partial<Pick<State, "localAiEnabled">>) => void;
+  addAiModel: (cfg: AiModelConfig) => void;
+  updateAiModel: (id: string, patch: Partial<Omit<AiModelConfig, "id">>) => void;
+  /** Deleting the active config repoints activeAiModelId at another config, or "". */
+  deleteAiModel: (id: string) => void;
+  setActiveAiModel: (id: string) => void;
 
   logSession: (type: SessionEventType) => SessionEvent;
   incSessionCount: (k: keyof SessionCounts) => void;
@@ -209,6 +221,13 @@ type State = {
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
+
+const DEFAULT_AI_MODEL: AiModelConfig = {
+  id: "ai-default",
+  label: "Ollama · llama3.2",
+  url: "http://localhost:11434/v1",
+  model: "llama3.2",
+};
 
 // Seed rows use fixed ids and are re-created by every fresh browser profile.
 // Their timestamps sit at epoch so last-write-wins sync always prefers real
@@ -338,9 +357,8 @@ export const useStore = create<State>()(
         aiStatus: "idle",
         aiSource: null,
         localAiEnabled: true,
-        localAiUrl: "http://localhost:11434/v1",
-        localAiModel: "llama3.2",
-        verifyAiModel: "",
+        aiModels: [DEFAULT_AI_MODEL],
+        activeAiModelId: DEFAULT_AI_MODEL.id,
         sessionEvents: [],
         sessionCounts: { questions: 0, vocab: 0 },
         aiQueue: [],
@@ -647,6 +665,19 @@ export const useStore = create<State>()(
         setAiStatus: (aiStatus, aiSource) =>
           set((s) => ({ aiStatus, aiSource: aiSource === undefined ? s.aiSource : aiSource })),
         setLocalAi: (patch) => set((s) => ({ ...s, ...patch })),
+        addAiModel: (cfg) => set((s) => ({ aiModels: [...s.aiModels, cfg] })),
+        updateAiModel: (id, patch) =>
+          set((s) => ({
+            aiModels: s.aiModels.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+          })),
+        deleteAiModel: (id) =>
+          set((s) => {
+            const aiModels = s.aiModels.filter((m) => m.id !== id);
+            const activeAiModelId =
+              s.activeAiModelId === id ? (aiModels[0]?.id ?? "") : s.activeAiModelId;
+            return { aiModels, activeAiModelId };
+          }),
+        setActiveAiModel: (id) => set({ activeAiModelId: id }),
 
         logSession: (type) => {
           const evt: SessionEvent = { type, at: Date.now() };
@@ -660,7 +691,7 @@ export const useStore = create<State>()(
     },
     {
       name: "neurovim-state-v4",
-      version: 5,
+      version: 6,
       migrate: (persisted) => {
         // v4 (version 0) → v5: entity timestamps + cards/sync fields.
         const s = persisted as Record<string, unknown>;
@@ -692,10 +723,34 @@ export const useStore = create<State>()(
         s.tombstones = s.tombstones ?? [];
         s.syncEnabled = s.syncEnabled ?? false;
         s.backendToken = s.backendToken ?? "";
-        s.verifyAiModel = s.verifyAiModel ?? "";
         if (Array.isArray(s.panes) && typeof s.focusedPane === "number") {
           s.focusedPane = Math.max(0, Math.min(s.focusedPane, s.panes.length - 1));
         }
+        // v5 → v6: fold the flat localAiUrl/localAiModel/verifyAiModel config
+        // into a one-entry aiModels registry so existing users keep their
+        // configured server/model with zero reconfiguration (R5).
+        if (!Array.isArray(s.aiModels)) {
+          const url =
+            typeof s.localAiUrl === "string" && s.localAiUrl ? s.localAiUrl : DEFAULT_AI_MODEL.url;
+          const model =
+            typeof s.localAiModel === "string" && s.localAiModel
+              ? s.localAiModel
+              : DEFAULT_AI_MODEL.model;
+          const verifyModel =
+            typeof s.verifyAiModel === "string" && s.verifyAiModel ? s.verifyAiModel : undefined;
+          const cfg: AiModelConfig = {
+            id: uid(),
+            label: model || url,
+            url,
+            model,
+            verifyModel,
+          };
+          s.aiModels = [cfg];
+          s.activeAiModelId = cfg.id;
+        }
+        delete s.localAiUrl;
+        delete s.localAiModel;
+        delete s.verifyAiModel;
         return s;
       },
       partialize: (s) => ({
@@ -706,9 +761,8 @@ export const useStore = create<State>()(
         focusedPane: s.focusedPane,
         sidebarOpen: s.sidebarOpen,
         localAiEnabled: s.localAiEnabled,
-        localAiUrl: s.localAiUrl,
-        localAiModel: s.localAiModel,
-        verifyAiModel: s.verifyAiModel,
+        aiModels: s.aiModels,
+        activeAiModelId: s.activeAiModelId,
         sessionEvents: s.sessionEvents,
         sessionCounts: s.sessionCounts,
         aiQueue: s.aiQueue,
@@ -723,6 +777,12 @@ export const useStore = create<State>()(
     },
   ),
 );
+
+/** The config the AI pipeline should use right now: the active one, else the first, else empty. */
+export function activeAiModel(state: Pick<State, "aiModels" | "activeAiModelId">): AiModelConfig {
+  const found = state.aiModels.find((m) => m.id === state.activeAiModelId);
+  return found ?? state.aiModels[0] ?? { id: "", label: "", url: "", model: "" };
+}
 
 /**
  * The AI privacy boundary's single source of truth: a file is personal if

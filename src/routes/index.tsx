@@ -1,6 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useStore, computeSessionStats, fmtDuration, fmtClock, isFilePersonal } from "@/lib/store";
+import {
+  useStore,
+  computeSessionStats,
+  fmtDuration,
+  fmtClock,
+  isFilePersonal,
+  activeAiModel,
+} from "@/lib/store";
 import {
   CALC_SYSTEM,
   COMMANDS,
@@ -111,9 +118,8 @@ function Editor() {
     aiSource,
     setAiStatus,
     localAiEnabled,
-    localAiUrl,
-    localAiModel,
-    verifyAiModel,
+    aiModels,
+    activeAiModelId,
     logSession,
     incSessionCount,
     resetSession,
@@ -127,6 +133,11 @@ function Editor() {
     addCard,
     setCardGrading,
   } = useStore();
+
+  const activeModel = useMemo(
+    () => activeAiModel({ aiModels, activeAiModelId }),
+    [aiModels, activeAiModelId],
+  );
 
   const [hydrated, setHydrated] = useState(false);
   const [slash, setSlash] = useState<SlashState>(CLOSED);
@@ -273,8 +284,8 @@ function Editor() {
           system: END_SESSION_SYSTEM_EXPORT,
           prompt: `Session buffer:\n${bufferContent}`,
           localAiEnabled,
-          localAiUrl,
-          localAiModel,
+          localAiUrl: activeModel.url,
+          localAiModel: activeModel.model,
           fileId: activeFileId,
         });
         const parsed = safeJson(text);
@@ -316,8 +327,7 @@ function Editor() {
       setAiStatus,
       setContent,
       localAiEnabled,
-      localAiUrl,
-      localAiModel,
+      activeModel,
     ],
   );
 
@@ -337,8 +347,8 @@ function Editor() {
           system: NOTE_SYSTEM,
           prompt: "```note\n" + sanitizeForPrompt(body, 4000) + "\n```",
           localAiEnabled,
-          localAiUrl,
-          localAiModel,
+          localAiUrl: activeModel.url,
+          localAiModel: activeModel.model,
           fileId: activeFileId,
         });
         const parsed = safeJson(text) as { summary?: string; tags?: string[] } | null;
@@ -361,7 +371,7 @@ function Editor() {
         else toast.error(`/note summary failed: ${msg}`);
       }
     },
-    [activeFileId, setContent, setAiStatus, localAiEnabled, localAiUrl, localAiModel],
+    [activeFileId, setContent, setAiStatus, localAiEnabled, activeModel],
   );
 
   /**
@@ -392,8 +402,8 @@ function Editor() {
           system: opts.system,
           prompt: opts.prompt,
           localAiEnabled,
-          localAiUrl,
-          localAiModel: opts.model || localAiModel,
+          localAiUrl: activeModel.url,
+          localAiModel: opts.model || activeModel.model,
           fileId: activeFileId,
         });
         const block = opts.onText(text, source);
@@ -411,7 +421,7 @@ function Editor() {
         else toast.error(`${opts.command} failed: ${msg}`);
       }
     },
-    [activeFileId, setContent, setAiStatus, localAiEnabled, localAiUrl, localAiModel],
+    [activeFileId, setContent, setAiStatus, localAiEnabled, activeModel],
   );
 
   /** Grade each closed question part: verified boolean + principle summary + 3 tags. */
@@ -432,7 +442,7 @@ function Editor() {
             `Question: ${sanitizeForPrompt(parsed.question ?? "", 1000)}\n` +
             `Part: ${parsed.partLabel ?? "a"}\nChoices:\n${choices}\nMarked correct: ${marked}`,
           insertAt,
-          model: verifyAiModel,
+          model: activeModel.verifyModel,
           onText: (text, source) => {
             const g = safeJson(text) as {
               aiVerified?: boolean;
@@ -457,7 +467,7 @@ function Editor() {
         });
       }
     },
-    [runCloseAi, verifyAiModel, setCardGrading],
+    [runCloseAi, activeModel, setCardGrading],
   );
 
   const correctMath = useCallback(
@@ -467,13 +477,13 @@ function Editor() {
         system: MATH_SYSTEM,
         prompt: "```math\n" + sanitizeForPrompt(body, 1000) + "\n```",
         insertAt,
-        model: verifyAiModel,
+        model: activeModel.verifyModel,
         onText: (text, source) => {
           const g = safeJson(text) as { latex?: string } | null;
           return renderBlock("/math", source, g?.latex ? `$${g.latex}$` : text.slice(0, 200));
         },
       }),
-    [runCloseAi, verifyAiModel],
+    [runCloseAi, activeModel],
   );
 
   const verifyCalc = useCallback(
@@ -483,7 +493,7 @@ function Editor() {
         system: CALC_SYSTEM,
         prompt: "```calc\n" + sanitizeForPrompt(body, 1000) + "\n```",
         insertAt,
-        model: verifyAiModel,
+        model: activeModel.verifyModel,
         onText: (text, source) => {
           const g = safeJson(text) as { expression?: string; claimed?: number | null } | null;
           if (!g?.expression)
@@ -512,7 +522,7 @@ function Editor() {
           }
         },
       }),
-    [runCloseAi, verifyAiModel],
+    [runCloseAi, activeModel],
   );
 
   const helpNudge = useCallback(
@@ -1048,7 +1058,7 @@ function Editor() {
             {aiStatus === "ok" && `AI · ok (${aiSource})`}
             {aiStatus === "err" && "AI · error"}
           </button>
-          <div className="ed-status-seg">{localAiEnabled ? localAiModel : "AI disabled"}</div>
+          <div className="ed-status-seg">{localAiEnabled ? activeModel.model : "AI disabled"}</div>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useStore } from "@/lib/store";
+import { activeAiModel, useStore } from "@/lib/store";
 
 export function LocalAiAlert({
   open,
@@ -11,7 +11,8 @@ export function LocalAiAlert({
   onClose: () => void;
   onOpenSettings: () => void;
 }) {
-  const { localAiUrl, localAiModel } = useStore();
+  const { aiModels, activeAiModelId } = useStore();
+  const { url: localAiUrl, model: localAiModel } = activeAiModel({ aiModels, activeAiModelId });
   if (!open) return null;
 
   const trimmedUrl = localAiUrl.trim().replace(/\/+$/, "");

@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Store `version` 5 → 6: the flat `localAiUrl`/`localAiModel`/`verifyAiModel` fields are replaced by an `aiModels` registry (`AiModelConfig[]`) plus `activeAiModelId`. `migrate` folds any existing flat config into a single active registry entry on load, so existing users keep their configured server/model with no reconfiguration. Settings is split into "AI models" (multi-server/model registry, active selector) and "Sync & key" views. The registry stays device-local, persisted via `partialize` but excluded from the encrypted note-sync payload (`sync-schema.ts` unchanged).
+
 ## [0.4.0] - 2026-07-25
 
 ### Added
