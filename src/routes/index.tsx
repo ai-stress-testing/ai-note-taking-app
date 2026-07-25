@@ -310,7 +310,6 @@ function Editor() {
         setContent(activeFileId, cur.replace(statsBlock, filled));
         setAiStatus("ok", source);
         toast.success(`/end · ${source}`, { id: toastId });
-        resetSession(activeFileId);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         setAiStatus("err", null);
@@ -322,6 +321,11 @@ function Editor() {
         } else {
           toast.error(`/end AI failed: ${msg}`);
         }
+      } finally {
+        // Finalize the session into the durable record regardless of whether
+        // the AI summary succeeded — the session happened either way, so
+        // analytics must capture it (not only when the local model responds).
+        resetSession(activeFileId);
       }
     },
     [

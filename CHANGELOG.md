@@ -16,15 +16,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Analytics "focus by note" view: per-note attribution of worked time, grouped from durable session records.
+- `/math` results render as typeset math via bundled KaTeX instead of showing raw `$latex$` text — new `katex` dependency (~270 KB JS plus self-hosted fonts, bundled same-origin, no CDN); invalid LaTeX degrades to the raw source (#6).
+- FSRS card & vocab management on the analytics page: view/edit/delete with filters (all / due / flagged / by kind); editing a card's content never resets its FSRS schedule (#8).
+- Native browser spellcheck/autocorrect on the note editor (off on the highlight mirror and technical settings fields) (#3).
+- Inline `/command` invocation: slash commands are detected and committed mid-line, not only at the start of a line (#14).
+- `/fidget`: an ephemeral scratch pad whose content is never written to the store, localStorage, or sync (#16).
+- Inline file rename affordance in the sidebar (#15).
 
 ### Changed
 
 - Store `version` 5 → 6: the flat `localAiUrl`/`localAiModel`/`verifyAiModel` fields are replaced by an `aiModels` registry (`AiModelConfig[]`) plus `activeAiModelId`. `migrate` folds any existing flat config into a single active registry entry on load, so existing users keep their configured server/model with no reconfiguration. Settings is split into "AI models" (multi-server/model registry, active selector) and "Sync & key" views. The registry stays device-local, persisted via `partialize` but excluded from the encrypted note-sync payload (`sync-schema.ts` unchanged).
 - Store `version` 6 → 7: adds a durable `sessions: Session[]` field (id, `fileId`, `startedAt`/`endedAt`, `workMs`/`breakMs`, `questions`/`vocab`), persisted via `partialize`. `migrate` defaults `sessions` to `[]` and defensively re-defaults `sessionEvents`/`sessionCounts` if malformed, so an in-flight (unfinished) session on upgrade can't crash analytics. `sessions` is client-only for now (not yet part of the encrypted sync payload — `sync-schema.ts`/`db.ts` unchanged; syncing sessions is a follow-up).
+- Flagging a card now means "this card's source content may be outdated" (something to review or refresh), not "come back to this later" (#12).
+- New files get a collision-safe default name that is never reused after a file is deleted (#15).
 
 ### Fixed
 
-- `/end` (`resetSession`) no longer destroys session history: it now finalizes the current `sessionEvents` log into a durable `Session` record (attributed to the active note) before clearing it, instead of just wiping it. A session left dangling by a `/start` with no matching `/end` (tab closed, AI summary failed, etc.) is finalized on the _next_ `/start` so no worked/break time is silently dropped. The live bottom-bar timer is unaffected — it already read only the (now correctly per-session) `sessionEvents` log. The analytics page's all-time totals and 14-day focus chart now aggregate the durable `sessions` list instead of re-folding the volatile live log, so a second `/start … /end` cycle no longer erases the first's contribution (issue #10).
+- `/end` (`resetSession`) no longer destroys session history: it now finalizes the current `sessionEvents` log into a durable `Session` record (attributed to the active note) before clearing it, instead of just wiping it. Finalization runs whether or not the AI summary succeeds, so a session is always captured. A session left dangling by a `/start` with no matching `/end` (tab closed, etc.) is finalized on the _next_ `/start` so no worked/break time is silently dropped. The live bottom-bar timer is unaffected — it already read only the (now correctly per-session) `sessionEvents` log. The analytics page's all-time totals and 14-day focus chart now aggregate the durable `sessions` list instead of re-folding the volatile live log, so a second `/start … /end` cycle no longer erases the first's contribution (issue #10).
+- Honest FSRS session completion: the review tray reports "X of Y reviewed" and only claims "caught up" when nothing is due globally and no card was rated "again"; closing the tray early reports the partial count instead of nothing (#11).
+- Workspace JSON export now includes the durable `sessions` history, so a "full workspace" backup taken after `/end` is no longer missing per-session data (#10).
 
 ## [0.4.0] - 2026-07-25
 

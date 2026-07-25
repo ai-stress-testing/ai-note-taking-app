@@ -12,7 +12,8 @@ function download(blob: Blob, name: string) {
 }
 
 export function DownloadModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { files, folders, panes, focusedPane, sessionEvents, sessionCounts, canvases } = useStore();
+  const { files, folders, panes, focusedPane, sessions, sessionEvents, sessionCounts, canvases } =
+    useStore();
   const [format, setFormat] = useState<"json" | "md-bundle" | "current">("json");
 
   if (!open) return null;
@@ -42,6 +43,7 @@ export function DownloadModal({ open, onClose }: { open: boolean; onClose: () =>
         folders,
         files: Object.values(files),
         canvases,
+        sessions,
         sessionEvents,
         sessionCounts,
       };

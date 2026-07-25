@@ -19,7 +19,13 @@ export const CANVAS_MARKER_RE = /⟦canvas:([a-z0-9-]+)⟧/g;
 export const MATH_MARKER_RE = /⟦math:([a-z0-9]+):([^⟧]*)⟧/g;
 
 export function mathMarker(id: string, latex: string): string {
-  return `⟦math:${id}:${latex}⟧`;
+  // The marker must stay a single line with no ⟦/⟧ in its payload: the
+  // resize/remove helpers locate the marker's end via the next "\n", and the
+  // regex payload is delimited by ⟧. A model can emit LaTeX with either, so
+  // collapse newlines (LaTeX uses "\\", never a literal newline) and drop the
+  // bracket glyphs before embedding.
+  const safe = latex.replace(/[\r\n]+/g, " ").replace(/[⟦⟧]/g, "");
+  return `⟦math:${id}:${safe}⟧`;
 }
 
 /** Editor line metrics — must match .ed-mirror/.ed-textarea.overlay CSS. */
