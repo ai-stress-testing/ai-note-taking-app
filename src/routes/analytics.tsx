@@ -38,38 +38,38 @@ function Bar({
 }
 
 function AnalyticsPage() {
-  const { sessionEvents, cards, reviewLogs } = useStore();
+  const { sessions, files, cards, reviewLogs } = useStore();
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
   const stats = useMemo(() => {
-    // Work intervals from the session log, attributed to their start day.
+    // Durable per-session records (issue #10) — attributed to the day the
+    // session started, since a session's clock lives on one calendar day
+    // for the overwhelming case and that's the simplest, stable bucket.
     const workByDay = new Map<string, number>();
-    let workingSince: number | null = null;
     let totalWork = 0;
     let totalBreak = 0;
-    let breakSince: number | null = null;
-    for (const e of sessionEvents) {
-      if (e.type === "start" || e.type === "resume") {
-        if (breakSince !== null) {
-          totalBreak += e.at - breakSince;
-          breakSince = null;
-        }
-        workingSince = e.at;
-      } else if (e.type === "break" || e.type === "end") {
-        if (workingSince !== null) {
-          const d = e.at - workingSince;
-          totalWork += d;
-          workByDay.set(dayKey(workingSince), (workByDay.get(dayKey(workingSince)) ?? 0) + d);
-          workingSince = null;
-        }
-        if (e.type === "break") breakSince = e.at;
-        else if (breakSince !== null) {
-          totalBreak += e.at - breakSince;
-          breakSince = null;
-        }
-      }
+    const byNote = new Map<string, { workMs: number; count: number }>();
+    for (const sess of sessions) {
+      totalWork += sess.workMs;
+      totalBreak += sess.breakMs;
+      const day = dayKey(sess.startedAt);
+      workByDay.set(day, (workByDay.get(day) ?? 0) + sess.workMs);
+
+      const noteKey = sess.fileId ?? "";
+      const agg = byNote.get(noteKey) ?? { workMs: 0, count: 0 };
+      agg.workMs += sess.workMs;
+      agg.count += 1;
+      byNote.set(noteKey, agg);
     }
+    const noteRows = [...byNote.entries()]
+      .map(([fileId, agg]) => ({
+        fileId,
+        name: fileId ? (files[fileId]?.name ?? "(deleted note)") : "(no note)",
+        ...agg,
+      }))
+      .sort((a, b) => b.workMs - a.workMs)
+      .slice(0, 8);
 
     const reviewsByDay = new Map<string, number>();
     const ratingCounts = new Map<FsrsRating, number>();
@@ -99,6 +99,7 @@ function AnalyticsPage() {
       totalBreak,
       days,
       workByDay,
+      noteRows,
       reviewsByDay,
       ratingCounts,
       totalCards: all.length,
@@ -109,7 +110,7 @@ function AnalyticsPage() {
       gradedOk: graded.filter((c) => c.gradedCorrect).length,
       topTags: [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8),
     };
-  }, [sessionEvents, cards, reviewLogs]);
+  }, [sessions, files, cards, reviewLogs]);
 
   if (!hydrated) return <div className="an-page" />;
 
@@ -120,6 +121,7 @@ function AnalyticsPage() {
     1,
   );
   const maxTag = Math.max(...stats.topTags.map(([, n]) => n), 1);
+  const maxNote = Math.max(...stats.noteRows.map((r) => r.workMs), 1);
 
   return (
     <div className="an-page">
@@ -165,6 +167,25 @@ function AnalyticsPage() {
             detail={fmtDuration(stats.workByDay.get(d.key) ?? 0)}
           />
         ))}
+      </section>
+
+      <section className="an-section">
+        <h2>focus by note</h2>
+        {stats.noteRows.length === 0 ? (
+          <p className="an-empty">
+            No finished sessions yet — run /start … /end in a note to log one.
+          </p>
+        ) : (
+          stats.noteRows.map((r) => (
+            <Bar
+              key={r.fileId || "(no note)"}
+              label={r.name}
+              value={r.workMs}
+              max={maxNote}
+              detail={`${fmtDuration(r.workMs)} · ${r.count} session${r.count === 1 ? "" : "s"}`}
+            />
+          ))
+        )}
       </section>
 
       <section className="an-section">

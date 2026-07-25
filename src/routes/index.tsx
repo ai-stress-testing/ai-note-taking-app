@@ -310,7 +310,7 @@ function Editor() {
         setContent(activeFileId, cur.replace(statsBlock, filled));
         setAiStatus("ok", source);
         toast.success(`/end · ${source}`, { id: toastId });
-        resetSession();
+        resetSession(activeFileId);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         setAiStatus("err", null);
@@ -677,6 +677,13 @@ function Editor() {
             return;
           }
           case "session:start": {
+            // A prior /start that never got /end (user closed the tab, AI
+            // summary failed, etc.) — finalize it as its own record before
+            // starting fresh, so that work isn't silently dropped (R2/edge
+            // case: dangling session).
+            if (useStore.getState().sessionEvents.length > 0) {
+              resetSession(activeFileId);
+            }
             const e = logSession("start");
             insertAtRange(lineStart, lineEnd, `[start ${fmtClock(e.at)}]\n`);
             return;
@@ -752,6 +759,7 @@ function Editor() {
       setPanes,
       incSessionCount,
       logSession,
+      resetSession,
       runEndSession,
       summarizeNote,
       gradeQuestions,

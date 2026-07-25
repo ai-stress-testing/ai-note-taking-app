@@ -42,6 +42,23 @@ export type SessionEvent = { type: SessionEventType; at: number };
 
 export type SessionCounts = { questions: number; vocab: number };
 
+/**
+ * A finalized work/break record ("children of the note", issue #10) — one
+ * per `/start … /end` cycle. Durable: appended on finalize, never rewritten.
+ * `sessionEvents` below stays the live, resettable log for the in-progress
+ * session only.
+ */
+export type Session = {
+  id: string;
+  fileId: string | null;
+  startedAt: number;
+  endedAt: number;
+  workMs: number;
+  breakMs: number;
+  questions: number;
+  vocab: number;
+};
+
 export type CanvasStroke = {
   points: { x: number; y: number; p: number }[];
   color: string;
@@ -142,6 +159,8 @@ type State = {
 
   sessionEvents: SessionEvent[];
   sessionCounts: SessionCounts;
+  /** Durable finalized sessions — what analytics reads (R2/R5). */
+  sessions: Session[];
 
   /** Queued/in-flight/completed AI calls, newest first, capped at AI_QUEUE_MAX. */
   aiQueue: AiQueueEntry[];
@@ -186,7 +205,13 @@ type State = {
 
   logSession: (type: SessionEventType) => SessionEvent;
   incSessionCount: (k: keyof SessionCounts) => void;
-  resetSession: () => void;
+  /**
+   * Finalizes the live session into a durable `Session` record (attributed
+   * to `fileId`) and then clears the live log — a no-op finalize (just the
+   * clear) when there's nothing to finalize. Called from `/end` and from
+   * the next `/start` if a prior session was left dangling.
+   */
+  resetSession: (fileId: string | null) => void;
 
   // ── cards / spaced repetition
   cards: Record<string, Card>;
@@ -365,6 +390,7 @@ export const useStore = create<State>()(
         activeAiModelId: DEFAULT_AI_MODEL.id,
         sessionEvents: [],
         sessionCounts: { questions: 0, vocab: 0 },
+        sessions: [],
         aiQueue: [],
         canvases: {},
         cards: seedCards(),
@@ -711,12 +737,36 @@ export const useStore = create<State>()(
         },
         incSessionCount: (k) =>
           set((s) => ({ sessionCounts: { ...s.sessionCounts, [k]: s.sessionCounts[k] + 1 } })),
-        resetSession: () => set({ sessionEvents: [], sessionCounts: { questions: 0, vocab: 0 } }),
+        resetSession: (fileId) => {
+          const { sessionEvents, sessionCounts } = get();
+          if (sessionEvents.length === 0) {
+            set({ sessionEvents: [], sessionCounts: { questions: 0, vocab: 0 } });
+            return;
+          }
+          const last = sessionEvents[sessionEvents.length - 1];
+          const endAt = last.type === "end" ? last.at : Date.now();
+          const stats = computeSessionStats(sessionEvents, endAt);
+          const session: Session = {
+            id: `sess-${uid()}`,
+            fileId,
+            startedAt: sessionEvents[0].at,
+            endedAt: endAt,
+            workMs: stats.workMs,
+            breakMs: stats.breakMs,
+            questions: sessionCounts.questions,
+            vocab: sessionCounts.vocab,
+          };
+          set((s) => ({
+            sessions: [...s.sessions, session],
+            sessionEvents: [],
+            sessionCounts: { questions: 0, vocab: 0 },
+          }));
+        },
       };
     },
     {
       name: "neurovim-state-v4",
-      version: 6,
+      version: 7,
       migrate: (persisted) => {
         // v4 (version 0) → v5: entity timestamps + cards/sync fields.
         const s = persisted as Record<string, unknown>;
@@ -776,6 +826,22 @@ export const useStore = create<State>()(
         delete s.localAiUrl;
         delete s.localAiModel;
         delete s.verifyAiModel;
+        // v6 → v7: analytics reads durable `sessions` records instead of
+        // folding the live `sessionEvents` log (issue #10 — that fold made
+        // every `/end` destroy prior history). A dangling in-flight session
+        // from before the upgrade is left as-is rather than retroactively
+        // reconstructed (see spec non-goals) — it's simply picked up and
+        // finalized on the next `/start`/`/end`, so analytics never crashes
+        // on it in the meantime.
+        if (!Array.isArray(s.sessions)) {
+          s.sessions = [];
+        }
+        if (!Array.isArray(s.sessionEvents)) {
+          s.sessionEvents = [];
+        }
+        if (!s.sessionCounts || typeof s.sessionCounts !== "object") {
+          s.sessionCounts = { questions: 0, vocab: 0 };
+        }
         return s;
       },
       partialize: (s) => ({
@@ -790,6 +856,7 @@ export const useStore = create<State>()(
         activeAiModelId: s.activeAiModelId,
         sessionEvents: s.sessionEvents,
         sessionCounts: s.sessionCounts,
+        sessions: s.sessions,
         aiQueue: s.aiQueue,
         canvases: s.canvases,
         cards: s.cards,
