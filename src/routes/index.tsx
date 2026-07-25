@@ -31,7 +31,7 @@ import { sanitizeForPrompt, extractCurrentQuestion, isLocalAiUnreachable } from 
 import { initSync } from "@/lib/sync";
 import { parseBlockToCards, parseEnclosingBlock, type ParsedCard } from "@/lib/card-parse";
 import { evaluateExpression } from "@/lib/calc-eval";
-import { markerBlock, removeMarkerBlock, REVIEW_MARKER } from "@/lib/inline-widgets";
+import { markerBlock, mathMarker, removeMarkerBlock, REVIEW_MARKER } from "@/lib/inline-widgets";
 import { InlineWidgetLayer } from "@/components/InlineWidgetLayer";
 import { AmbientWaves } from "@/components/AmbientWaves";
 import { FidgetPad } from "@/components/FidgetPad";
@@ -61,6 +61,11 @@ type SlashState = {
 };
 
 const CLOSE_RULE_TEXT = `──────────────────────────────────────────────────\n\n`;
+
+// Initial reserved height for a /math result's rendered KaTeX overlay —
+// InlineWidgetLayer measures the real render and corrects this via
+// resizeMarkerBlock, so it only needs to be in the right ballpark.
+const MATH_BLOCK_HEIGHT_PX = 64;
 
 const CLOSED: SlashState = {
   open: false,
@@ -480,7 +485,15 @@ function Editor() {
         model: activeModel.verifyModel,
         onText: (text, source) => {
           const g = safeJson(text) as { latex?: string } | null;
-          return renderBlock("/math", source, g?.latex ? `$${g.latex}$` : text.slice(0, 200));
+          if (!g?.latex) return renderBlock("/math", source, text.slice(0, 200));
+          // Header only (no raw "$latex$" body) — the marker below carries
+          // the LaTeX and InlineWidgetLayer renders it via <MathBlock>, the
+          // same anchored-overlay mechanism /canvas and /fsrs use.
+          const id = Math.random().toString(36).slice(2, 10);
+          return (
+            renderBlock("/math", source, "") +
+            markerBlock(mathMarker(id, g.latex), MATH_BLOCK_HEIGHT_PX)
+          );
         },
       }),
     [runCloseAi, activeModel],

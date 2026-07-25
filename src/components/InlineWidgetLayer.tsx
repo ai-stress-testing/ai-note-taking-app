@@ -4,14 +4,17 @@ import { getCaretCoords } from "@/lib/caret";
 import {
   CANVAS_MARKER_RE,
   LINE_HEIGHT_PX,
+  MATH_MARKER_RE,
   REVIEW_MARKER,
   removeMarkerBlock,
   resizeMarkerBlock,
 } from "@/lib/inline-widgets";
 import { CanvasBlock } from "./CanvasBlock";
 import { FlashcardTray } from "./FlashcardTray";
+import { MathBlock } from "./MathBlock";
 
 type Anchor = { x: number; y: number };
+type MathAnchor = Anchor & { marker: string; latex: string };
 
 /**
  * Renders canvases and the review tray at the exact line where /canvas and
@@ -37,6 +40,7 @@ export function InlineWidgetLayer({
 }) {
   const { canvases, setCanvas, deleteCanvas, setContent } = useStore();
   const [anchors, setAnchors] = useState<Record<string, Anchor>>({});
+  const [mathAnchors, setMathAnchors] = useState<MathAnchor[]>([]);
   const [tick, setTick] = useState(0);
 
   useLayoutEffect(() => {
@@ -59,6 +63,12 @@ export function InlineWidgetLayer({
       next["review"] = { x, y: y + LINE_HEIGHT_PX + 4 };
     }
     setAnchors(next);
+    const nextMath: MathAnchor[] = [];
+    for (const m of content.matchAll(MATH_MARKER_RE)) {
+      const { x, y } = getCaretCoords(textarea, m.index);
+      nextMath.push({ marker: m[0], latex: m[2], x, y: y + LINE_HEIGHT_PX + 4 });
+    }
+    setMathAnchors(nextMath);
     // tick re-measures on pane resize (wrapping changes line positions)
   }, [content, textarea, tick]);
 
@@ -114,6 +124,22 @@ export function InlineWidgetLayer({
           />
         </div>
       )}
+      {mathAnchors.map((a) => (
+        <div
+          key={a.marker}
+          className="ed-inline-widget"
+          style={{ position: "absolute", top: a.y, left: a.x, zIndex: 3 }}
+        >
+          <MathBlock
+            latex={a.latex}
+            onHeightChange={(heightPx) => {
+              const cur = useStore.getState().files[fileId]?.content ?? content;
+              const resized = resizeMarkerBlock(cur, a.marker, heightPx + 16);
+              if (resized !== cur) setContent(fileId, resized);
+            }}
+          />
+        </div>
+      ))}
     </>
   );
 }

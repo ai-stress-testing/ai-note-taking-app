@@ -3,6 +3,7 @@
 @import "@fontsource-variable/jetbrains-mono";
 @import "@fontsource/inter";
 @import "tw-animate-css";
+@import "katex/dist/katex.min.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -1163,6 +1164,35 @@ kbd {
   background: color-mix(in oklab, var(--ctp-mauve) 35%, transparent);
   color: transparent;
   -webkit-text-fill-color: transparent;
+}
+
+/* ============================================================
+   Rendered math (/math result) — KaTeX's own CSS is imported above;
+   this is just the anchored-widget wrapper. Color is inherited
+   (KaTeX's base rules use currentColor) so it reads in light and dark.
+   ============================================================ */
+.ed-math-block {
+  color: var(--ctp-text);
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
+.ed-math-error {
+  color: var(--ctp-peach);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.ed-math-error-hint {
+  color: var(--ctp-overlay1);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+.ed-math-error code {
+  color: var(--ctp-peach);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* ============================================================

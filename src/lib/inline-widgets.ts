@@ -9,6 +9,19 @@
 export const REVIEW_MARKER = "⟦review⟧";
 export const CANVAS_MARKER_RE = /⟦canvas:([a-z0-9-]+)⟧/g;
 
+/**
+ * Math markers carry the LaTeX source directly in the buffer (no store
+ * entry, unlike canvases) so a `/math` result stays plain-text editable and
+ * syncable. The random id keeps two markers with byte-identical LaTeX from
+ * colliding on the `content.indexOf(marker)` lookups `resizeMarkerBlock`/
+ * `removeMarkerBlock` use.
+ */
+export const MATH_MARKER_RE = /⟦math:([a-z0-9]+):([^⟧]*)⟧/g;
+
+export function mathMarker(id: string, latex: string): string {
+  return `⟦math:${id}:${latex}⟧`;
+}
+
 /** Editor line metrics — must match .ed-mirror/.ed-textarea.overlay CSS. */
 export const LINE_HEIGHT_PX = 13.5 * 1.6;
 
