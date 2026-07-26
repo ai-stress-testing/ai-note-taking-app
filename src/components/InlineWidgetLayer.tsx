@@ -30,6 +30,7 @@ export function InlineWidgetLayer({
   focused,
   reviewIds,
   onCloseReview,
+  onContinueReview,
 }: {
   fileId: string;
   content: string;
@@ -37,6 +38,7 @@ export function InlineWidgetLayer({
   focused: boolean;
   reviewIds: string[] | null;
   onCloseReview: () => void;
+  onContinueReview: () => void;
 }) {
   const { canvases, setCanvas, deleteCanvas, setContent } = useStore();
   const [anchors, setAnchors] = useState<Record<string, Anchor>>({});
@@ -159,6 +161,7 @@ export function InlineWidgetLayer({
               setContent(fileId, removeMarkerBlock(content, REVIEW_MARKER));
               onCloseReview();
             }}
+            onContinue={onContinueReview}
           />
         </div>
       )}

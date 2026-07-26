@@ -7,8 +7,8 @@
 ## Data model (Option A)
 
 - [ ] Add `Introspection` type and `introspections: Record<folderId,
-    Introspection[]>` to `src/lib/store.ts`, with `addIntrospection(
-    folderId, text)` (+ optional `deleteIntrospection`).
+  Introspection[]>` to `src/lib/store.ts`, with `addIntrospection(
+  folderId, text)` (+ optional `deleteIntrospection`).
 - [ ] Add `introspections` to `partialize`; drop a folder's introspections in
       `deleteFolder` cleanup.
 - [ ] Bump the persisted store `version`; add a `migrate` default

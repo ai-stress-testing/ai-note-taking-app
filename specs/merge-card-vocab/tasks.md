@@ -13,9 +13,9 @@
 ## Parsing
 
 - [ ] `src/lib/card-parse.ts`: `── Card ` → `{ kind: "card", front, back?,
-    encoding? }`, reading an `encoding:` field.
+  encoding? }`, reading an `encoding:` field.
 - [ ] Keep `── Vocab ` as an alias → `{ kind: "card", front: term,
-    back: definition, encoding? }` (map `example:` → encoding).
+  back: definition, encoding? }` (map `example:` → encoding).
 - [ ] Widen `ParsedCard`'s `Pick` to include `encoding`.
 
 ## Editor templates

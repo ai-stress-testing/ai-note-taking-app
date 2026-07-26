@@ -373,6 +373,14 @@ function Editor() {
     [activeFileId, insertAtRange, insertBlockAtRange, setContent],
   );
 
+  // The tray's "continue" button: swap reviewIds to the next due batch. The
+  // marker/anchor already exist (the tray stays open), so this only re-seeds
+  // the batch — keeping reviewIds the single source of truth for what's shown.
+  const continueReview = useCallback(() => {
+    const next = pickDueCards(useStore.getState().cards);
+    if (next.length > 0) setReviewIds(next.map((c) => c.id));
+  }, []);
+
   const summarizeNote = useCallback(
     async (body: string, insertAt: number) => {
       const closeLen = `──────────────────────────────────────────────────\n\n`.length;
@@ -1061,6 +1069,7 @@ function Editor() {
                           focused={isFocused}
                           reviewIds={reviewIds}
                           onCloseReview={() => setReviewIds(null)}
+                          onContinueReview={continueReview}
                         />
                       )}
                     </div>

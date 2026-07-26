@@ -5,7 +5,7 @@
       scrolls past it.
 - [ ] In `InlineWidgetLayer.tsx`, store each anchor's scroll-independent raw
       offset (`measuredY + textarea.scrollTop` / `measuredX +
-    textarea.scrollLeft`) instead of the already-scroll-adjusted value
+  textarea.scrollLeft`) instead of the already-scroll-adjusted value
       `getCaretCoords` returns.
 - [ ] Track the textarea's live `scrollTop`/`scrollLeft` in local state,
       updated via a scroll listener added directly to the `textarea` prop

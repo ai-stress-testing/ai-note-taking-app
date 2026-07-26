@@ -61,35 +61,35 @@ export function pickDueCards(cards: Record<string, Card>, cap = 10): Card[] {
 }
 
 /**
- * Owns the current batch's ids and remounts `ReviewSession` (via `key`) on
- * continue so its per-session counters — captured once via `useState`
- * initializers — start clean, the same reset a full remount would give,
- * without requiring the parent to key this component itself.
+ * Batch ownership lives at the route (`reviewIds`): "continue" swaps in the
+ * next due batch there, so a tray remount (pane refocus, a second /fsrs)
+ * always re-seeds the CURRENT batch instead of a stale first one. Keying
+ * ReviewSession by the batch identity remounts it with fresh per-session
+ * counters when the batch changes.
  */
-export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => void }) {
+export function FlashcardTray({
+  ids,
+  onClose,
+  onContinue,
+}: {
+  ids: string[];
+  onClose: () => void;
+  onContinue?: () => void;
+}) {
   const { cards } = useStore();
-  const [activeIds, setActiveIds] = useState(ids);
-  const [epoch, setEpoch] = useState(0);
 
   const dueRemaining = useMemo(
     () => Object.values(cards).filter((c) => c.fsrs.dueAt <= Date.now()).length,
     [cards],
   );
 
-  const handleContinue = () => {
-    const next = pickDueCards(useStore.getState().cards);
-    if (next.length === 0) return;
-    setActiveIds(next.map((c) => c.id));
-    setEpoch((e) => e + 1);
-  };
-
   return (
     <ReviewSession
-      key={epoch}
-      ids={activeIds}
+      key={ids.join(",")}
+      ids={ids}
       dueRemaining={dueRemaining}
       onClose={onClose}
-      onContinue={handleContinue}
+      onContinue={onContinue}
     />
   );
 }
@@ -103,7 +103,7 @@ function ReviewSession({
   ids: string[];
   dueRemaining: number;
   onClose: () => void;
-  onContinue: () => void;
+  onContinue?: () => void;
 }) {
   const { cards, rateCard, toggleCardFlag } = useStore();
   const [index, setIndex] = useState(0);
@@ -182,7 +182,7 @@ function ReviewSession({
               {dueRemaining === 0 ? " — /fsrs for more" : ""}
             </>
           )}
-          {dueRemaining > 0 && (
+          {dueRemaining > 0 && onContinue && (
             <button className="ed-btn primary" onClick={onContinue}>
               continue
             </button>
