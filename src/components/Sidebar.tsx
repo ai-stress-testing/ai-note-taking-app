@@ -20,7 +20,6 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
     focusedPane,
     panes,
     sidebarOpen,
-    toggleSidebar,
   } = useStore();
 
   const fileList = useMemo(
@@ -32,13 +31,7 @@ export function Sidebar({ onOpenDownload }: { onOpenDownload: () => void }) {
   );
 
   if (!sidebarOpen) {
-    return (
-      <div className="ed-side collapsed">
-        <button className="ed-side-toggle-mini" onClick={toggleSidebar} title="Show sidebar">
-          ›
-        </button>
-      </div>
-    );
+    return null;
   }
 
   return (

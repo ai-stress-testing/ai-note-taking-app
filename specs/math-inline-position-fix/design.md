@@ -64,7 +64,7 @@ rawX = measuredX + textarea.scrollLeft
 ```
 
 Store `rawX`/`rawY` per anchor instead of the scroll-adjusted values. Track
-the textarea's *live* `scrollTop`/`scrollLeft` in `InlineWidgetLayer` state,
+the textarea's _live_ `scrollTop`/`scrollLeft` in `InlineWidgetLayer` state,
 updated on every scroll event (cheap — no DOM measurement, just reading
 `el.scrollTop`). Render each widget at:
 

@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline `/command` invocation: slash commands are detected and committed mid-line, not only at the start of a line (#14).
 - `/fidget`: an ephemeral scratch pad whose content is never written to the store, localStorage, or sync (#16).
 - Inline file rename affordance in the sidebar (#15).
+- Inline markdown styling in the editor mirror: `>>` blockquotes, `#`/`##`/`###` headings, and `**bold**` spans render with color/weight, without hiding the raw syntax or shifting caret alignment (#21).
+- "Continue" button on the FSRS review-complete banner: starts a fresh session on the next due batch in one click, without closing the tray or retyping `/fsrs`; hidden when nothing is due now (#24).
 
 ### Changed
 
@@ -35,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/end` (`resetSession`) no longer destroys session history: it now finalizes the current `sessionEvents` log into a durable `Session` record (attributed to the active note) before clearing it, instead of just wiping it. Finalization runs whether or not the AI summary succeeds, so a session is always captured. A session left dangling by a `/start` with no matching `/end` (tab closed, etc.) is finalized on the _next_ `/start` so no worked/break time is silently dropped. The live bottom-bar timer is unaffected — it already read only the (now correctly per-session) `sessionEvents` log. The analytics page's all-time totals and 14-day focus chart now aggregate the durable `sessions` list instead of re-folding the volatile live log, so a second `/start … /end` cycle no longer erases the first's contribution (issue #10).
 - Honest FSRS session completion: the review tray reports "X of Y reviewed" and only claims "caught up" when nothing is due globally and no card was rated "again"; closing the tray early reports the partial count instead of nothing (#11).
 - Workspace JSON export now includes the durable `sessions` history, so a "full workspace" backup taken after `/end` is no longer missing per-session data (#10).
+- `/card` and `/vocab` now land the caret at the end of the front/term value (matching `/question`'s "after `Q: `" behavior) instead of below the inserted block (#20).
 
 ## [0.4.0] - 2026-07-25
 

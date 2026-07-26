@@ -21,7 +21,7 @@ Grounded in the actual code:
   - persist config: `name: "neurovim-state-v4"`, `version: 7`, with a
     stacked `migrate`.
 - `src/lib/card-parse.ts`
-  - `── Card ` → `{ kind: "note", front, back? }`  ← note, **not** a "card".
+  - `── Card ` → `{ kind: "note", front, back? }` ← note, **not** a "card".
   - `── Vocab ` → `{ kind: "vocab", front: term, back: definition }` — the
     `example` line is read by nobody.
   - `── Question ` → one `question` card per Part.
@@ -140,7 +140,7 @@ than a coordinated client+server cutover, and reversible.
 - `── Card ` branch → `{ kind: "card", front, back?, encoding? }`, reading a
   new `encoding:` field via the existing `fieldValue` helper.
 - `── Vocab ` branch (kept as alias) → `{ kind: "card", front: term,
-  back: definition, encoding? }`, now also reading the old `example:` line
+back: definition, encoding? }`, now also reading the old `example:` line
   into `encoding` (so historical blocks lose nothing on close).
 - `ParsedCard` type already derives from `Card`; widen its `Pick` to include
   `encoding`.
@@ -151,8 +151,8 @@ than a coordinated client+server cutover, and reversible.
   ```
   ── Card ──────────────────────────────────────────
     front:    <args>
-    back:     
-    encoding: 
+    back:
+    encoding:
   ```
   (Label widths aligned; see #20 for exact caret placement.)
 - `tpl:vocab` inserts the **same** `── Card ──` template (alias). Keep the

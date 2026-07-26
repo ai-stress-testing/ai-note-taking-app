@@ -46,7 +46,65 @@ function CardFront({ card, revealed }: { card: Card; revealed: boolean }) {
   );
 }
 
+/**
+ * Same due-card rule `/fsrs` uses to build a review batch: due now, oldest
+ * first, capped at 10. Shared by `startReview` (routes/index.tsx) and the
+ * "continue" button below so both pick the next batch identically instead
+ * of duplicating the filter/sort/slice.
+ */
+export function pickDueCards(cards: Record<string, Card>, cap = 10): Card[] {
+  const now = Date.now();
+  return Object.values(cards)
+    .filter((c) => c.fsrs.dueAt <= now)
+    .sort((a, b) => a.fsrs.dueAt - b.fsrs.dueAt)
+    .slice(0, cap);
+}
+
+/**
+ * Owns the current batch's ids and remounts `ReviewSession` (via `key`) on
+ * continue so its per-session counters — captured once via `useState`
+ * initializers — start clean, the same reset a full remount would give,
+ * without requiring the parent to key this component itself.
+ */
 export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => void }) {
+  const { cards } = useStore();
+  const [activeIds, setActiveIds] = useState(ids);
+  const [epoch, setEpoch] = useState(0);
+
+  const dueRemaining = useMemo(
+    () => Object.values(cards).filter((c) => c.fsrs.dueAt <= Date.now()).length,
+    [cards],
+  );
+
+  const handleContinue = () => {
+    const next = pickDueCards(useStore.getState().cards);
+    if (next.length === 0) return;
+    setActiveIds(next.map((c) => c.id));
+    setEpoch((e) => e + 1);
+  };
+
+  return (
+    <ReviewSession
+      key={epoch}
+      ids={activeIds}
+      dueRemaining={dueRemaining}
+      onClose={onClose}
+      onContinue={handleContinue}
+    />
+  );
+}
+
+function ReviewSession({
+  ids,
+  dueRemaining,
+  onClose,
+  onContinue,
+}: {
+  ids: string[];
+  dueRemaining: number;
+  onClose: () => void;
+  onContinue: () => void;
+}) {
   const { cards, rateCard, toggleCardFlag } = useStore();
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -56,10 +114,6 @@ export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => 
 
   const queue = useMemo(() => ids.filter((id) => cards[id]), [ids, cards]);
   const [sessionSize] = useState(() => queue.length);
-  const dueRemaining = useMemo(
-    () => Object.values(cards).filter((c) => c.fsrs.dueAt <= Date.now()).length,
-    [cards],
-  );
   const card = queue[index] ? cards[queue[index]] : undefined;
   const done = index >= queue.length;
 
@@ -124,8 +178,14 @@ export function FlashcardTray({ ids, onClose }: { ids: string[]; onClose: () => 
             <>
               {core}
               {dueRemaining > 0 ? ` · ${dueRemaining} still due` : ""}
-              {againCount > 0 ? ` · ${againCount} marked again` : ""} — /fsrs for more
+              {againCount > 0 ? ` · ${againCount} marked again` : ""}
+              {dueRemaining === 0 ? " — /fsrs for more" : ""}
             </>
+          )}
+          {dueRemaining > 0 && (
+            <button className="ed-btn primary" onClick={onContinue}>
+              continue
+            </button>
           )}
           <button className="ed-btn ghost" onClick={onClose}>
             close

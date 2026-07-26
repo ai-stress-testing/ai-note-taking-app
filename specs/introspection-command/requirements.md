@@ -10,8 +10,8 @@ There's nowhere to capture the "why am I sitting down to study" insight a
 student states at the start of a session. `/start` today
 (`session:start` in `src/routes/index.tsx`) only logs a timestamp event and
 inserts `[start HH:MM:SS]`. The session model (`sessionEvents`, durable
-`Session` records — "children of the note," #10) tracks *time*, not
-*intent*. A student's recurring intentions across a folder ("I keep
+`Session` records — "children of the note," #10) tracks _time_, not
+_intent_. A student's recurring intentions across a folder ("I keep
 struggling with limits," "focus on proofs today") are never recorded and
 never reflected back. Issue #18 wants introspections captured per **folder**
 (a "child of the folder," paralleling sessions as children of the note),
@@ -45,7 +45,7 @@ surfaced when a session starts, and summarized by AI across the folder.
   one folder.
 - Editing/threading introspections into a rich timeline UI — MVP is capture,
   surface at `/start`, and summarize.
-- Making `/start` *depend* on introspections — it must work identically with
+- Making `/start` _depend_ on introspections — it must work identically with
   zero of them (R2).
 - Turning introspections into review cards or feeding them to `/end` — those
   are separate flows.

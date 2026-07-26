@@ -34,7 +34,7 @@ line height:
 - No font-size changes for headings — a taller heading line in the mirror
   than in the textarea (which uses one fixed `line-height`, `inline-widgets.ts`
   `LINE_HEIGHT_PX`) desyncs every line below it.
-- Bold via `font-weight` is *usually* safe in a true monospace font (fixed
+- Bold via `font-weight` is _usually_ safe in a true monospace font (fixed
   advance width regardless of weight) but must be verified against this
   app's bundled `--font-mono` before relying on it — some monospace fonts'
   bold cut is not perfectly fixed-width. If it isn't, fall back to a
@@ -58,7 +58,7 @@ already uses per line. Every character stays in the DOM in the same order;
 only a wrapping `<span className="...">` changes. This is a direct
 extension of a pattern already proven to keep the textarea/mirror in sync.
 
-*Trade-off:* markdown syntax characters stay visible (`>> like this` reads
+_Trade-off:_ markdown syntax characters stay visible (`>> like this` reads
 as a styled quote with the `>>` still shown, not hidden) — a real,
 disclosed limitation, not a bug. Users get visual feedback, not full
 WYSIWYG.
@@ -77,14 +77,15 @@ than what #21 is asking for.
 already used for `/canvas`, `/fsrs`, and rendered `/math`) applied to
 markdown block elements.
 
-This mechanism works well for *opaque, block-level, non-inline-editable*
+This mechanism works well for _opaque, block-level, non-inline-editable_
 artifacts: the source becomes a marker, reserved blank lines hold its
 space, and a React component renders on top. It's a poor fit for markdown
 text formatting specifically:
+
 - Bold and headings are inline/short-lived by nature — they don't want the
   "reserve N blank lines for a widget" treatment built for canvases and
   math blocks.
-- A blockquote or bold run is still *text the user is actively editing* —
+- A blockquote or bold run is still _text the user is actively editing_ —
   turning it into an opaque marker+overlay would mean the visible quote is
   no longer the thing being typed into (defeats the purpose; canvas/math
   work because their content genuinely isn't inline-editable plain text).

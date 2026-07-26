@@ -42,6 +42,7 @@ export function InlineWidgetLayer({
   const [anchors, setAnchors] = useState<Record<string, Anchor>>({});
   const [mathAnchors, setMathAnchors] = useState<MathAnchor[]>([]);
   const [tick, setTick] = useState(0);
+  const [scroll, setScroll] = useState({ top: 0, left: 0 });
 
   useLayoutEffect(() => {
     if (!textarea) return;
@@ -50,23 +51,55 @@ export function InlineWidgetLayer({
     return () => observer.disconnect();
   }, [textarea]);
 
+  // Anchors below are stored as raw, scroll-independent offsets (document
+  // position, not viewport position). Live scroll is tracked separately here
+  // so repositioning on scroll is cheap arithmetic, not a DOM re-measurement.
+  useLayoutEffect(() => {
+    if (!textarea) return;
+    setScroll({ top: textarea.scrollTop, left: textarea.scrollLeft });
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setScroll({ top: textarea.scrollTop, left: textarea.scrollLeft });
+      });
+    };
+    textarea.addEventListener("scroll", onScroll);
+    return () => {
+      textarea.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [textarea]);
+
   useLayoutEffect(() => {
     if (!textarea) return;
     const next: Record<string, Anchor> = {};
     for (const m of content.matchAll(CANVAS_MARKER_RE)) {
       const { x, y } = getCaretCoords(textarea, m.index);
-      next[m[1]] = { x, y: y + LINE_HEIGHT_PX + 4 };
+      next[m[1]] = {
+        x: x + textarea.scrollLeft,
+        y: y + textarea.scrollTop + LINE_HEIGHT_PX + 4,
+      };
     }
     const reviewIdx = content.indexOf(REVIEW_MARKER);
     if (reviewIdx !== -1) {
       const { x, y } = getCaretCoords(textarea, reviewIdx);
-      next["review"] = { x, y: y + LINE_HEIGHT_PX + 4 };
+      next["review"] = {
+        x: x + textarea.scrollLeft,
+        y: y + textarea.scrollTop + LINE_HEIGHT_PX + 4,
+      };
     }
     setAnchors(next);
     const nextMath: MathAnchor[] = [];
     for (const m of content.matchAll(MATH_MARKER_RE)) {
       const { x, y } = getCaretCoords(textarea, m.index);
-      nextMath.push({ marker: m[0], latex: m[2], x, y: y + LINE_HEIGHT_PX + 4 });
+      nextMath.push({
+        marker: m[0],
+        latex: m[2],
+        x: x + textarea.scrollLeft,
+        y: y + textarea.scrollTop + LINE_HEIGHT_PX + 4,
+      });
     }
     setMathAnchors(nextMath);
     // tick re-measures on pane resize (wrapping changes line positions)
@@ -83,7 +116,12 @@ export function InlineWidgetLayer({
           <div
             key={cv.id}
             className="ed-inline-widget"
-            style={{ position: "absolute", top: a.y, left: a.x, zIndex: 3 }}
+            style={{
+              position: "absolute",
+              top: a.y - scroll.top,
+              left: a.x - scroll.left,
+              zIndex: 3,
+            }}
           >
             <CanvasBlock
               data={cv}
@@ -109,8 +147,8 @@ export function InlineWidgetLayer({
           className="ed-inline-widget ed-inline-review"
           style={{
             position: "absolute",
-            top: anchors["review"].y,
-            left: anchors["review"].x,
+            top: anchors["review"].y - scroll.top,
+            left: anchors["review"].x - scroll.left,
             right: "1.25rem",
             zIndex: 3,
           }}
@@ -128,7 +166,12 @@ export function InlineWidgetLayer({
         <div
           key={a.marker}
           className="ed-inline-widget"
-          style={{ position: "absolute", top: a.y, left: a.x, zIndex: 3 }}
+          style={{
+            position: "absolute",
+            top: a.y - scroll.top,
+            left: a.x - scroll.left,
+            zIndex: 3,
+          }}
         >
           <MathBlock
             latex={a.latex}

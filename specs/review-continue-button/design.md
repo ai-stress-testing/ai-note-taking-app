@@ -8,12 +8,15 @@ The review session setup lives in `src/routes/index.tsx`, in the
 ```js
 const all = Object.values(useStore.getState().cards);
 const now = Date.now();
-const due = all.filter(c => c.fsrs.dueAt <= now)
-               .sort((a, b) => a.fsrs.dueAt - b.fsrs.dueAt)
-               .slice(0, 10);
-if (due.length === 0) { /* toast "no cards due", return */ }
+const due = all
+  .filter((c) => c.fsrs.dueAt <= now)
+  .sort((a, b) => a.fsrs.dueAt - b.fsrs.dueAt)
+  .slice(0, 10);
+if (due.length === 0) {
+  /* toast "no cards due", return */
+}
 // clean any stale marker, insert a fresh REVIEW_MARKER block, then:
-setReviewIds(due.map(c => c.id));
+setReviewIds(due.map((c) => c.id));
 ```
 
 `reviewIds` is `useState<string[] | null>` in the route. It flows:
@@ -28,7 +31,7 @@ continue affordance needs:
 
 ```js
 const dueRemaining = useMemo(
-  () => Object.values(cards).filter(c => c.fsrs.dueAt <= Date.now()).length,
+  () => Object.values(cards).filter((c) => c.fsrs.dueAt <= Date.now()).length,
   [cards],
 );
 const caughtUp = dueRemaining === 0 && againCount === 0;
@@ -64,12 +67,13 @@ only needs to recompute due cards and re-point `reviewIds`. A thin
 const continueReview = useCallback(() => {
   const all = Object.values(useStore.getState().cards);
   const now = Date.now();
-  const due = all.filter(c => c.fsrs.dueAt <= now)
-                 .sort((a, b) => a.fsrs.dueAt - b.fsrs.dueAt)
-                 .slice(0, 10);
-  if (due.length === 0) return;            // button is hidden in this case
-  setReviewSeq(n => n + 1);                // force remount (see §3)
-  setReviewIds(due.map(c => c.id));
+  const due = all
+    .filter((c) => c.fsrs.dueAt <= now)
+    .sort((a, b) => a.fsrs.dueAt - b.fsrs.dueAt)
+    .slice(0, 10);
+  if (due.length === 0) return; // button is hidden in this case
+  setReviewSeq((n) => n + 1); // force remount (see §3)
+  setReviewIds(due.map((c) => c.id));
 }, []);
 ```
 
@@ -88,10 +92,16 @@ In the `done` branch, render the continue button **only when
 `dueRemaining > 0`**, next to the existing close button:
 
 ```jsx
-{dueRemaining > 0 && (
-  <button className="ed-btn primary" onClick={onContinue}>continue</button>
-)}
-<button className="ed-btn ghost" onClick={onClose}>close</button>
+{
+  dueRemaining > 0 && (
+    <button className="ed-btn primary" onClick={onContinue}>
+      continue
+    </button>
+  );
+}
+<button className="ed-btn ghost" onClick={onClose}>
+  close
+</button>;
 ```
 
 The existing banner copy stays; when `dueRemaining > 0` the "— /fsrs for

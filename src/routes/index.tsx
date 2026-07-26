@@ -33,6 +33,7 @@ import { parseBlockToCards, parseEnclosingBlock, type ParsedCard } from "@/lib/c
 import { evaluateExpression } from "@/lib/calc-eval";
 import { markerBlock, mathMarker, removeMarkerBlock, REVIEW_MARKER } from "@/lib/inline-widgets";
 import { InlineWidgetLayer } from "@/components/InlineWidgetLayer";
+import { pickDueCards } from "@/components/FlashcardTray";
 import { AmbientWaves } from "@/components/AmbientWaves";
 import { FidgetPad } from "@/components/FidgetPad";
 
@@ -340,6 +341,38 @@ function Editor() {
     ],
   );
 
+  // Shared by `tpl:fsrs` and (indirectly, via `pickDueCards`) the review
+  // tray's "continue" button: picks the next due batch, anchors the tray to
+  // this line via REVIEW_MARKER, and points reviewIds at it. Returns whether
+  // a session was actually started (false when nothing is due).
+  const startReview = useCallback(
+    (lineStart: number, lineEnd: number) => {
+      const all = useStore.getState().cards;
+      const due = pickDueCards(all);
+      if (due.length === 0) {
+        insertAtRange(lineStart, lineEnd, "");
+        const next = Object.values(all)
+          .map((c) => c.fsrs.dueAt)
+          .sort((a, b) => a - b)[0];
+        toast.success(
+          next
+            ? `No cards due — next due ${new Date(next).toLocaleString()}`
+            : "No cards yet — close a /card, /vocab, or /question block to create some",
+        );
+        return false;
+      }
+      // Anchor the review tray to this line: the marker reserves space
+      // and InlineWidgetLayer renders the tray over it.
+      const cur = useStore.getState().files[activeFileId]?.content ?? "";
+      const cleaned = removeMarkerBlock(cur, REVIEW_MARKER);
+      if (cleaned !== cur) setContent(activeFileId, cleaned);
+      insertBlockAtRange(lineStart, lineEnd, markerBlock(REVIEW_MARKER, 340));
+      setReviewIds(due.map((c) => c.id));
+      return true;
+    },
+    [activeFileId, insertAtRange, insertBlockAtRange, setContent],
+  );
+
   const summarizeNote = useCallback(
     async (body: string, insertAt: number) => {
       const closeLen = `──────────────────────────────────────────────────\n\n`.length;
@@ -645,39 +678,25 @@ function Editor() {
           }
           case "tpl:vocab": {
             incSessionCount("vocab");
-            const tpl = `── Vocab ─────────────────────────────────────────\n  term:       ${args || ""}\n  definition: \n  example:    \n`;
-            insertBlockAtRange(lineStart, lineEnd, tpl);
+            const header = `── Vocab ─────────────────────────────────────────\n`;
+            const termLabel = `  term:       `;
+            const tpl = `${header}${termLabel}${args || ""}\n  definition: \n  example:    \n`;
+            // Land right after the term value, mirroring /question's "after Q: " pattern.
+            const caretOffset = header.length + termLabel.length + (args ? args.length : 0);
+            insertBlockAtRange(lineStart, lineEnd, tpl, caretOffset);
             return;
           }
           case "tpl:card": {
-            const tpl = `── Card ──────────────────────────────────────────\n  front: ${args || ""}\n  back:  \n`;
-            insertBlockAtRange(lineStart, lineEnd, tpl);
+            const header = `── Card ──────────────────────────────────────────\n`;
+            const frontLabel = `  front: `;
+            const tpl = `${header}${frontLabel}${args || ""}\n  back:  \n`;
+            // Land right after the front value, mirroring /question's "after Q: " pattern.
+            const caretOffset = header.length + frontLabel.length + (args ? args.length : 0);
+            insertBlockAtRange(lineStart, lineEnd, tpl, caretOffset);
             return;
           }
           case "tpl:fsrs": {
-            const all = Object.values(useStore.getState().cards);
-            const now = Date.now();
-            const due = all
-              .filter((c) => c.fsrs.dueAt <= now)
-              .sort((a, b) => a.fsrs.dueAt - b.fsrs.dueAt)
-              .slice(0, 10);
-            if (due.length === 0) {
-              insertAtRange(lineStart, lineEnd, "");
-              const next = all.map((c) => c.fsrs.dueAt).sort((a, b) => a - b)[0];
-              toast.success(
-                next
-                  ? `No cards due — next due ${new Date(next).toLocaleString()}`
-                  : "No cards yet — close a /card, /vocab, or /question block to create some",
-              );
-              return;
-            }
-            // Anchor the review tray to this line: the marker reserves space
-            // and InlineWidgetLayer renders the tray over it.
-            const cur = useStore.getState().files[activeFileId]?.content ?? "";
-            const cleaned = removeMarkerBlock(cur, REVIEW_MARKER);
-            if (cleaned !== cur) setContent(activeFileId, cleaned);
-            insertBlockAtRange(lineStart, lineEnd, markerBlock(REVIEW_MARKER, 340));
-            setReviewIds(due.map((c) => c.id));
+            startReview(lineStart, lineEnd);
             return;
           }
           case "session:start": {
@@ -765,6 +784,7 @@ function Editor() {
       logSession,
       resetSession,
       runEndSession,
+      startReview,
       summarizeNote,
       gradeQuestions,
       correctMath,
@@ -1152,11 +1172,51 @@ function safeJson(text: string): { title?: string; summary?: string; tags?: stri
   }
 }
 
+// Matches `**text**` on one line only: the character class excludes `*` and
+// `\n` inside the run, so an unclosed `**` (no matching close before the
+// line ends or another `*` appears) simply fails to match — no styling,
+// no runaway scan — rather than consuming the rest of the line.
+const BOLD_RE = /\*\*[^*\n]+?\*\*/g;
+
+/**
+ * Wraps `**...**` runs in `.md-bold` spans, keeping every character
+ * (including the asterisks) in place — styling only, never hiding or
+ * removing text, so the mirror's character count stays identical to the
+ * textarea's.
+ */
+function renderInlineBold(text: string, keyPrefix: string): React.ReactNode {
+  if (!text.includes("**")) return text;
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let idx = 0;
+  BOLD_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = BOLD_RE.exec(text))) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    parts.push(
+      <span key={`${keyPrefix}-b${idx++}`} className="md-bold">
+        {m[0]}
+      </span>,
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
 /**
  * Render buffer content into a syntax-highlighted node tree for the mirror
  * overlay. AI blocks (lines prefixed with `» `) get the `ai-line` class so
  * they render in Catppuccin lavender. Preserves exact character metrics
  * with the textarea so the caret aligns.
+ *
+ * Markdown tokens (`>>` blockquote, `#`/`##`/`###` headings, `**bold**`) are
+ * styled the same way: a wrapping `<span>` with a `.md-*` class, never
+ * removing or reflowing characters — see the `.md-*` rules in styles.css
+ * for why (character-position parity with the raw textarea is required for
+ * caret alignment). They're checked only on lines that don't already match
+ * the ai-line/rule cases above, so `>>`/`**`/`#` inside an AI response or a
+ * `⟦...⟧` marker payload (rule branch) is never double-styled.
  */
 function renderHighlighted(content: string): React.ReactNode {
   const lines = content.split("\n");
@@ -1179,9 +1239,28 @@ function renderHighlighted(content: string): React.ReactNode {
         </span>
       );
     }
+    if (line.startsWith(">>")) {
+      return (
+        <span key={i} className="md-quote">
+          {renderInlineBold(line, String(i))}
+          {nl}
+        </span>
+      );
+    }
+    // Heading: 1-3 `#` followed by whitespace (lookahead, not consumed) —
+    // `#tag` or a run of 4+ `#` (no h4+ in the MVP) falls through to plain.
+    const heading = line.match(/^#{1,3}(?=\s)/);
+    if (heading) {
+      return (
+        <span key={i} className={`md-h${heading[0].length}`}>
+          {renderInlineBold(line, String(i))}
+          {nl}
+        </span>
+      );
+    }
     return (
       <span key={i}>
-        {line}
+        {renderInlineBold(line, String(i))}
         {nl}
       </span>
     );

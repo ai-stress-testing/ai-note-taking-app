@@ -6,7 +6,7 @@
 >
 > **Depends on `specs/fsrs-feedback-review/` (#7).** #7 introduces the
 > intra-session working queue and the "Again ⇒ relearn now" behavior. This
-> spec (#25) is the AI relearn *content* that fills that requeue. #7's
+> spec (#25) is the AI relearn _content_ that fills that requeue. #7's
 > ephemeral working-queue (its recommended Option A) is the substrate this
 > builds on — land #7 first, or co-design the queue with this.
 
@@ -14,11 +14,11 @@
 
 In the review tray (`FlashcardTray.tsx`), rating a card **Again** (rating 1)
 today just reschedules it ~10 min out (`MIN_INTERVAL_DAYS`) and the card
-leaves the session — the student never actually *relearns* the missed
+leaves the session — the student never actually _relearns_ the missed
 material this sitting. #7 fixes the requeue mechanic (the card comes back).
-But re-showing the *same* card is weak relearning: the student may just
+But re-showing the _same_ card is weak relearning: the student may just
 recognize the answer they were shown. Issue #25 wants an **active,
-episodic** relearn — on Again, the app constructs a *new* question derived
+episodic** relearn — on Again, the app constructs a _new_ question derived
 from the missed one, has the student answer it open-ended, and grades how
 much was lost, repeating until the concept sticks. The goal is
 episodic-memory construction: building a fresh recall event around the fact,
@@ -59,7 +59,7 @@ not re-exposing the same card face.
 - Persisting the relearn episodes as durable analytics data in the MVP
   (a considered Option B; deferred — see design).
 - Reworking `#7`'s requeue placement/counting — this spec supplies the
-  *content* shown when a requeued Again card comes up, not the queue policy.
+  _content_ shown when a requeued Again card comes up, not the queue policy.
 - A separate practice route/UI — relearn happens inline in the existing
   tray.
 - Semantic answer-similarity scoring in code — "%off" is the model's
@@ -82,5 +82,5 @@ not re-exposing the same card face.
   cycle state are dropped (they were never persisted); the original card's
   schedule already reflects the Again rating.
 - **Does relearn replace or accompany #7's plain requeue?** — resolve in
-  design (leaning: the AI relearn *is* the requeue when AI is reachable;
+  design (leaning: the AI relearn _is_ the requeue when AI is reachable;
   #7's plain re-show is the offline path).

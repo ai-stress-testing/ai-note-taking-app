@@ -12,8 +12,8 @@ via `moveTo = prefix.length + caretOffset`). `insertAtRange` does the actual
 
 ```js
 const caretOffset = args
-  ? (header + partHeader + FIRST_CHOICE_PREFIX).length  // into first choice
-  : header.length - 1;                                   // right after "Q: "
+  ? (header + partHeader + FIRST_CHOICE_PREFIX).length // into first choice
+  : header.length - 1; // right after "Q: "
 insertBlockAtRange(lineStart, lineEnd, tpl, caretOffset);
 ```
 
@@ -31,8 +31,8 @@ For the unified template from `#19`:
 ```
 ── Card ──────────────────────────────────────────
   front:    <args>
-  back:     
-  encoding: 
+  back:
+  encoding:
 ```
 
 Let `header` be the marker line through the newline, and `frontLabel` be the

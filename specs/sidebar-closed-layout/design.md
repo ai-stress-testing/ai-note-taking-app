@@ -39,14 +39,17 @@ Two things compound to produce the residual column, both easy to point to:
    This fills that reserved 28px column with a visible rail and its own
    reopen button (`ed-side-toggle-mini`).
 
-That second point is what makes this a *duplicate* control, not just a
+That second point is what makes this a _duplicate_ control, not just a
 narrow gap: `routes/index.tsx` L886-893 already renders a header toggle
 that is present regardless of `sidebarOpen` and already flips label
 (`‹`/`›`) and title text for both states:
 
 ```tsx
-<button className="ed-header-toggle" onClick={toggleSidebar}
-  title={sidebarOpen ? "Hide sidebar (⌘B)" : "Show sidebar (⌘B)"}>
+<button
+  className="ed-header-toggle"
+  onClick={toggleSidebar}
+  title={sidebarOpen ? "Hide sidebar (⌘B)" : "Show sidebar (⌘B)"}
+>
   {sidebarOpen ? "‹" : "›"}
 </button>
 ```
