@@ -51,7 +51,11 @@ export const syncCanvasSchema = z.object({
 
 export const syncCardSchema = z.object({
   id,
-  kind: z.enum(["question", "vocab", "note"]),
+  // Tolerant reader (expand/contract migration, #19): "vocab" is a legacy
+  // value from before /card and /vocab merged into one "card" kind. The
+  // client only ever writes "card"; "vocab" is accepted so an old client or
+  // an existing server row still round-trips without a lock-step deploy.
+  kind: z.enum(["question", "vocab", "card", "note"]),
   fileId: id.nullable(),
   partLabel: z.string().max(8).nullable(),
   /** question/front/back/choices bundled into one encrypted JSON payload. */

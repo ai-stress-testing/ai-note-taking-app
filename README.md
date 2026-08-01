@@ -57,7 +57,8 @@ schedule reviews. The API requires the bearer token on every request.
 | Command                            | What it does                                                                                                                    |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `/question`                        | MCQ template — `Q:`, lettered parts, 4 `[ ]` choice brackets; mark answers `[x]`; graded on close (verified + summary + 3 tags) |
-| `/vocab`, `/card`, `/note`         | term/definition, front/back, and knowledge-note capture blocks                                                                  |
+| `/card` (`/vocab` is an alias)     | front/back/encoding card capture — one card kind, whether you came from a term/definition or a plain front/back                 |
+| `/note`                            | knowledge-note capture block                                                                                                    |
 | `/math`, `/calc`                   | math corrected to LaTeX on close; calculations verified by a real evaluator, never model arithmetic                             |
 | `/>`                               | closes the current block — cards join the deck, AI follow-ups fire                                                              |
 | `/fsrs`                            | reviews due cards inline at that line (FSRS-4.5; keyboard: space, 1–4, ⚑ flag)                                                  |

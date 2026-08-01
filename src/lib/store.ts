@@ -73,7 +73,7 @@ export type CanvasData = {
 };
 
 // ── Cards / spaced repetition ───────────────────────────────
-export type CardKind = "question" | "vocab" | "note";
+export type CardKind = "question" | "card" | "note";
 export type CardChoice = { text: string; correct: boolean };
 export type Card = {
   id: string;
@@ -83,9 +83,11 @@ export type Card = {
   question?: string;
   partLabel?: string;
   choices?: CardChoice[];
-  /** kind = "vocab" (term/definition) or "note" (front only). */
+  /** kind = "card" (front/back, ex-vocab merged in) or "note" (front only). */
   front?: string;
   back?: string;
+  /** kind = "card" only: the learner's own mnemonic/connection. Optional. */
+  encoding?: string;
   createdAt: number;
   updatedAt: number;
   fsrs: FsrsState;
@@ -219,7 +221,7 @@ type State = {
   cardsSeeded: boolean;
   addCard: (
     card: Pick<Card, "kind" | "fileId"> &
-      Partial<Pick<Card, "question" | "partLabel" | "choices" | "front" | "back">>,
+      Partial<Pick<Card, "question" | "partLabel" | "choices" | "front" | "back" | "encoding">>,
   ) => string;
   rateCard: (id: string, rating: FsrsRating) => void;
   setCardGrading: (
@@ -230,7 +232,7 @@ type State = {
   toggleCardFlag: (id: string) => void;
   updateCard: (
     id: string,
-    patch: Partial<Pick<Card, "question" | "choices" | "front" | "back">>,
+    patch: Partial<Pick<Card, "question" | "choices" | "front" | "back" | "encoding">>,
   ) => void;
 
   // ── sync / persistence backend
@@ -316,22 +318,24 @@ function seedCards(): Record<string, Card> {
   });
   const deck: Card[] = [
     mk("seed-zettel-1", {
-      kind: "vocab",
+      kind: "card",
       front: "permanent note",
       back: "A note rewritten in your own words, one idea per note, linked into the Zettelkasten — written for your future self, not copied from the source.",
+      encoding:
+        "A permanent note is a postcard to your future self, not a photocopy of the source.",
     }),
     mk("seed-zettel-2", {
-      kind: "vocab",
+      kind: "card",
       front: "literature note",
       back: "A brief capture of what a source says, in your own words, with a citation — raw material that later becomes permanent notes.",
     }),
     mk("seed-fsrs-1", {
-      kind: "vocab",
+      kind: "card",
       front: "retrievability",
       back: "The probability you can recall a card right now; decays with time since the last review and is what spaced repetition schedules against.",
     }),
     mk("seed-fsrs-2", {
-      kind: "vocab",
+      kind: "card",
       front: "stability (FSRS)",
       back: "How long a memory lasts: the number of days for retrievability to fall from 100% to 90%. Grows with each successful review.",
     }),
@@ -766,7 +770,7 @@ export const useStore = create<State>()(
     },
     {
       name: "neurovim-state-v4",
-      version: 7,
+      version: 8,
       migrate: (persisted) => {
         // v4 (version 0) → v5: entity timestamps + cards/sync fields.
         const s = persisted as Record<string, unknown>;
@@ -841,6 +845,14 @@ export const useStore = create<State>()(
         }
         if (!s.sessionCounts || typeof s.sessionCounts !== "object") {
           s.sessionCounts = { questions: 0, vocab: 0 };
+        }
+        // v7 → v8: /card and /vocab unified into one `card` kind with an
+        // optional `encoding` field. Existing vocab cards are the same
+        // shape (front/back) — only the tag changes; schedules untouched.
+        if (s.cards && typeof s.cards === "object") {
+          for (const c of Object.values(s.cards as Record<string, { kind?: string }>)) {
+            if (c.kind === "vocab") c.kind = "card";
+          }
         }
         return s;
       },

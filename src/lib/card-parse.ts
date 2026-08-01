@@ -7,7 +7,7 @@ import type { Card, CardChoice } from "./store";
  */
 
 export type ParsedCard = Pick<Card, "kind"> &
-  Partial<Pick<Card, "question" | "partLabel" | "choices" | "front" | "back">>;
+  Partial<Pick<Card, "question" | "partLabel" | "choices" | "front" | "back" | "encoding">>;
 
 const MARKERS = [
   "── Card ",
@@ -82,13 +82,29 @@ export function parseBlockToCards(buffer: string, caret: number): ParsedCard[] {
   if (marker === "── Card ") {
     const front = fieldValue(block, "front");
     const back = fieldValue(block, "back");
-    return front ? [{ kind: "note", front, back: back || undefined }] : [];
+    const encoding = fieldValue(block, "encoding");
+    return front
+      ? [{ kind: "card", front, back: back || undefined, encoding: encoding || undefined }]
+      : [];
   }
 
+  // Kept as a parse alias so old files with a literal ── Vocab ── block
+  // still produce a card on close; the term/definition/example field names
+  // map onto the unified front/back/encoding shape.
   if (marker === "── Vocab ") {
     const term = fieldValue(block, "term");
     const definition = fieldValue(block, "definition");
-    return term && definition ? [{ kind: "vocab", front: term, back: definition }] : [];
+    const example = fieldValue(block, "example");
+    return term
+      ? [
+          {
+            kind: "card",
+            front: term,
+            back: definition || undefined,
+            encoding: example || undefined,
+          },
+        ]
+      : [];
   }
 
   const question = fieldValue(block, "Q");

@@ -42,6 +42,7 @@ function CardFront({ card, revealed }: { card: Card; revealed: boolean }) {
     <>
       <div className="ed-fc-q">{card.front}</div>
       {revealed && card.back && <div className="ed-fc-back">{card.back}</div>}
+      {revealed && card.encoding && <div className="ed-fc-encoding">encoding: {card.encoding}</div>}
     </>
   );
 }

@@ -685,21 +685,16 @@ function Editor() {
             return;
           }
           case "tpl:vocab": {
+            // /vocab is an alias: it inserts the same unified ── Card ──
+            // block as /card. The session-counter key stays "vocab" — it's
+            // an internal label, unrelated to the (now merged) card kind.
             incSessionCount("vocab");
-            const header = `── Vocab ─────────────────────────────────────────\n`;
-            const termLabel = `  term:       `;
-            const tpl = `${header}${termLabel}${args || ""}\n  definition: \n  example:    \n`;
-            // Land right after the term value, mirroring /question's "after Q: " pattern.
-            const caretOffset = header.length + termLabel.length + (args ? args.length : 0);
+            const { tpl, caretOffset } = cardTemplate(args);
             insertBlockAtRange(lineStart, lineEnd, tpl, caretOffset);
             return;
           }
           case "tpl:card": {
-            const header = `── Card ──────────────────────────────────────────\n`;
-            const frontLabel = `  front: `;
-            const tpl = `${header}${frontLabel}${args || ""}\n  back:  \n`;
-            // Land right after the front value, mirroring /question's "after Q: " pattern.
-            const caretOffset = header.length + frontLabel.length + (args ? args.length : 0);
+            const { tpl, caretOffset } = cardTemplate(args);
             insertBlockAtRange(lineStart, lineEnd, tpl, caretOffset);
             return;
           }
@@ -1284,6 +1279,19 @@ const FIRST_CHOICE_PREFIX = "  [ ] ";
 
 function choiceLines(n = 4): string {
   return Array.from({ length: n }, () => `${FIRST_CHOICE_PREFIX}\n`).join("");
+}
+
+// ── Card / vocab (alias) template ───────────────────────
+// /card and /vocab both insert this block; the "vocab" name only survives
+// as a session-counter key and a parse alias (card-parse.ts), not a second
+// template.
+function cardTemplate(args: string): { tpl: string; caretOffset: number } {
+  const header = `── Card ──────────────────────────────────────────\n`;
+  const frontLabel = `  front:    `;
+  const tpl = `${header}${frontLabel}${args || ""}\n  back:     \n  encoding: \n`;
+  // Land right after the front value, mirroring /question's "after Q: " pattern.
+  const caretOffset = header.length + frontLabel.length + (args ? args.length : 0);
+  return { tpl, caretOffset };
 }
 
 function partLetter(index: number): string {

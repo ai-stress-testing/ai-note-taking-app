@@ -87,7 +87,10 @@ create table if not exists canvases (
 );
 create table if not exists cards (
   id text primary key,
-  kind text not null check (kind in ('question','vocab','note')),
+  -- Tolerant reader (#19): 'vocab' is a legacy value from before /card and
+  -- /vocab merged into one 'card' kind; kept accepted so existing rows and
+  -- an old client's writes still validate. New writes use 'card'.
+  kind text not null check (kind in ('question','vocab','card','note')),
   file_id text,
   part_label text,
   content_ct text not null, content_nonce text not null,
@@ -340,7 +343,7 @@ export async function pullWorkspace(): Promise<PullResponse> {
     })),
     cards: (d.all("select * from cards") as Row[]).map((r) => ({
       id: r.id as string,
-      kind: r.kind as "question" | "vocab" | "note",
+      kind: r.kind as "question" | "vocab" | "card" | "note",
       fileId: r.file_id as string | null,
       partLabel: r.part_label as string | null,
       content: enc(r, "content"),

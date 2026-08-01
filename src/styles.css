@@ -1494,6 +1494,13 @@ kbd {
   border-top: 1px dashed var(--ctp-surface0);
   padding-top: 8px;
 }
+.ed-fc-encoding {
+  color: var(--ctp-overlay1);
+  font-size: 11.5px;
+  font-style: italic;
+  line-height: 1.5;
+  padding-top: 4px;
+}
 .ed-fc-choices {
   display: flex;
   flex-direction: column;
@@ -1813,7 +1820,7 @@ kbd {
 .an-cm-kind.k-question {
   color: var(--ctp-sapphire);
 }
-.an-cm-kind.k-vocab {
+.an-cm-kind.k-card {
   color: var(--ctp-green);
 }
 .an-cm-kind.k-note {

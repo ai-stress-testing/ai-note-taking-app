@@ -110,6 +110,7 @@ async function buildPush(): Promise<PushPayload> {
             choices: c.choices,
             front: c.front,
             back: c.back,
+            encoding: c.encoding,
             gradedCorrect: c.gradedCorrect,
             gradedSummary: c.gradedSummary,
             gradedTags: c.gradedTags,
@@ -130,11 +131,20 @@ async function buildPush(): Promise<PushPayload> {
 async function decryptCard(k: CryptoKey, c: SyncCard): Promise<Card> {
   const content = JSON.parse(await decryptText(k, c.content)) as Pick<
     Card,
-    "question" | "choices" | "front" | "back" | "gradedCorrect" | "gradedSummary" | "gradedTags"
+    | "question"
+    | "choices"
+    | "front"
+    | "back"
+    | "encoding"
+    | "gradedCorrect"
+    | "gradedSummary"
+    | "gradedTags"
   >;
   return {
     id: c.id,
-    kind: c.kind,
+    // Tolerant reader: a still-vocab row from an older client/server lands
+    // as "card" here, matching the store's v7→v8 migration (same one-line map).
+    kind: c.kind === "vocab" ? "card" : c.kind,
     fileId: c.fileId,
     partLabel: c.partLabel ?? undefined,
     ...content,

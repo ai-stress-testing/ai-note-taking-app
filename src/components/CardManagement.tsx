@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { useStore, type Card, type CardChoice } from "@/lib/store";
 
-type FilterKey = "all" | "due" | "flagged" | "question" | "vocab" | "note";
+type FilterKey = "all" | "due" | "flagged" | "question" | "card" | "note";
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "all", label: "all" },
   { key: "due", label: "due now" },
   { key: "flagged", label: "flagged" },
   { key: "question", label: "question" },
-  { key: "vocab", label: "vocab" },
+  { key: "card", label: "card" },
   { key: "note", label: "note" },
 ];
 
@@ -28,6 +28,7 @@ function fmtDue(at: number, now: number): string {
 type EditState = {
   front: string;
   back: string;
+  encoding: string;
   question: string;
   choices: CardChoice[];
 };
@@ -36,6 +37,7 @@ function toEditState(card: Card): EditState {
   return {
     front: card.front ?? "",
     back: card.back ?? "",
+    encoding: card.encoding ?? "",
     question: card.question ?? "",
     choices: (card.choices ?? []).map((c) => ({ ...c })),
   };
@@ -58,7 +60,7 @@ export function CardManagement() {
         case "flagged":
           return c.flagged;
         case "question":
-        case "vocab":
+        case "card":
         case "note":
           return c.kind === filter;
         default:
@@ -112,15 +114,14 @@ export function CardManagement() {
       if (choices.length === 0) return setError("Keep at least one choice.");
       if (!choices.some((c) => c.correct)) return setError("Mark at least one choice correct.");
       updateCard(card.id, { question, choices });
-    } else if (card.kind === "vocab") {
-      const front = edit.front.trim();
-      const back = edit.back.trim();
-      if (!front || !back) return setError("Term and definition can't be empty.");
-      updateCard(card.id, { front, back });
     } else {
       const front = edit.front.trim();
       if (!front) return setError("Front text can't be empty.");
-      updateCard(card.id, { front, back: edit.back.trim() || undefined });
+      updateCard(card.id, {
+        front,
+        back: edit.back.trim() || undefined,
+        encoding: edit.encoding.trim() || undefined,
+      });
     }
     cancelEdit();
   };
@@ -220,17 +221,24 @@ export function CardManagement() {
                     ) : (
                       <>
                         <label className="an-cm-field">
-                          <span>{card.kind === "vocab" ? "term" : "front"}</span>
+                          <span>front</span>
                           <textarea
                             value={edit.front}
                             onChange={(e) => patchEdit({ front: e.target.value })}
                           />
                         </label>
                         <label className="an-cm-field">
-                          <span>{card.kind === "vocab" ? "definition" : "back (optional)"}</span>
+                          <span>back (optional)</span>
                           <textarea
                             value={edit.back}
                             onChange={(e) => patchEdit({ back: e.target.value })}
+                          />
+                        </label>
+                        <label className="an-cm-field">
+                          <span>encoding (optional)</span>
+                          <textarea
+                            value={edit.encoding}
+                            onChange={(e) => patchEdit({ encoding: e.target.value })}
                           />
                         </label>
                       </>
