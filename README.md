@@ -72,9 +72,14 @@ with visible "not sent" feedback. The **analytics** page (◔ in the header)
 shows focus history, review throughput, grading ratios, and tag frequency —
 computed locally, never sent anywhere.
 
-A starter deck of 8 cards ships in so `/fsrs` works immediately. Every
-review logs full FSRS data points (elapsed time, retrievability,
-stability/difficulty before and after) for future parameter optimization.
+New profiles start with an empty deck — make cards with `/card` and
+`/question`, or load an 8-card starter deck on demand (the "load starter
+deck" action on the empty `/fsrs` prompt). Review is a feedback loop: a
+card you rate **again** returns later in the same session and must be
+cleared before you're done, so a session ends at `(10 + m)/10` where `m` is
+how many cards you had to relearn — not a fixed 10. Every review logs full
+FSRS data points (elapsed time, retrievability, stability/difficulty before
+and after) for future parameter optimization.
 
 ## Development
 

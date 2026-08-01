@@ -354,11 +354,18 @@ function Editor() {
         const next = Object.values(all)
           .map((c) => c.fsrs.dueAt)
           .sort((a, b) => a - b)[0];
-        toast.success(
-          next
-            ? `No cards due — next due ${new Date(next).toLocaleString()}`
-            : "No cards yet — close a /card, /vocab, or /question block to create some",
-        );
+        if (next) {
+          toast.success(`No cards due — next due ${new Date(next).toLocaleString()}`);
+        } else {
+          // Fresh profile: empty deck. Point to card creation and offer the
+          // opt-in starter deck (#7).
+          toast("No cards yet — close a /card or /question block to create some", {
+            action: {
+              label: "load starter deck",
+              onClick: () => useStore.getState().loadStarterDeck(),
+            },
+          });
+        }
         return false;
       }
       // Anchor the review tray to this line: the marker reserves space

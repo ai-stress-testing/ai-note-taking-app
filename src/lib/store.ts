@@ -223,6 +223,8 @@ type State = {
     card: Pick<Card, "kind" | "fileId"> &
       Partial<Pick<Card, "question" | "partLabel" | "choices" | "front" | "back" | "encoding">>,
   ) => string;
+  /** Opt-in: merge the 8 starter cards into the deck (fresh profiles start empty). */
+  loadStarterDeck: () => void;
   rateCard: (id: string, rating: FsrsRating) => void;
   setCardGrading: (
     id: string,
@@ -397,9 +399,11 @@ export const useStore = create<State>()(
         sessions: [],
         aiQueue: [],
         canvases: {},
-        cards: seedCards(),
+        // Fresh profiles start with an empty deck (#7); the starter deck is
+        // opt-in via loadStarterDeck(). Existing users keep their cards.
+        cards: {},
         reviewLogs: [],
-        cardsSeeded: true,
+        cardsSeeded: false,
         tombstones: [],
         syncEnabled: false,
         backendToken: "",
@@ -421,6 +425,8 @@ export const useStore = create<State>()(
           set((s) => ({ cards: { ...s.cards, [id]: card } }));
           return id;
         },
+        loadStarterDeck: () =>
+          set((s) => ({ cards: { ...seedCards(), ...s.cards }, cardsSeeded: true })),
         rateCard: (id, rating) =>
           set((s) => {
             const card = s.cards[id];
@@ -794,9 +800,11 @@ export const useStore = create<State>()(
           }
           s.canvases = patched;
         }
+        // Don't force-seed on upgrade (#7): a profile without a cards field
+        // starts empty; the starter deck is opt-in via loadStarterDeck().
         if (!s.cards) {
-          s.cards = seedCards();
-          s.cardsSeeded = true;
+          s.cards = {};
+          s.cardsSeeded = false;
         }
         s.reviewLogs = s.reviewLogs ?? [];
         s.tombstones = s.tombstones ?? [];

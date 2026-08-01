@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useStore, type Card } from "@/lib/store";
 import { reviewCard, type FsrsRating } from "@/lib/fsrs";
+
+// Feedback-loop review (#7): a missed card returns this many cards later, and
+// stops being requeued after this many "again"s (then it's scheduled once).
+const REQUEUE_SPACING = 3;
+const AGAIN_CAP = 3;
 
 const RATINGS: { rating: FsrsRating; label: string; keyHint: string }[] = [
   { rating: 1, label: "again", keyHint: "1" },
@@ -107,21 +112,29 @@ function ReviewSession({
   onContinue?: () => void;
 }) {
   const { cards, rateCard, toggleCardFlag } = useStore();
-  const [index, setIndex] = useState(0);
+  // Working queue (feedback loop, #7): a missed card is re-inserted a few
+  // cards later and must be cleared before the session ends, so completion is
+  // (10 + m)/10 with m = relearns — not a fixed 10. The queue is ephemeral
+  // session state; the FSRS scheduler is only touched on a card's TERMINAL
+  // rating so intra-session requeues don't thrash dueAt / spam reviewLogs.
+  const [work, setWork] = useState<string[]>(() => ids.filter((id) => cards[id]));
+  const [pos, setPos] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [entering, setEntering] = useState(true);
-  const [ratedCount, setRatedCount] = useState(0);
-  const [againCount, setAgainCount] = useState(0);
+  const attemptsRef = useRef<Record<string, number>>({});
+  const [cleared, setCleared] = useState(0); // distinct cards terminally rated
+  const [relearns, setRelearns] = useState(0); // m: how many requeues happened
+  const [capped, setCapped] = useState(0); // cards that hit the "again" cap
 
-  const queue = useMemo(() => ids.filter((id) => cards[id]), [ids, cards]);
-  const [sessionSize] = useState(() => queue.length);
-  const card = queue[index] ? cards[queue[index]] : undefined;
-  const done = index >= queue.length;
+  const [sessionSize] = useState(() => ids.filter((id) => cards[id]).length);
+  const cardId = work[pos];
+  const card = cardId && cards[cardId] ? cards[cardId] : undefined;
+  const done = pos >= work.length;
 
-  // Early close (× before the queue is exhausted) must still report the
-  // honest partial count — otherwise closing mid-session silently drops it.
+  // Early close (× before the queue is cleared) still reports the honest
+  // count of distinct cards actually cleared this sitting.
   const closeWithSummary = () => {
-    if (!done && ratedCount > 0) toast(`${ratedCount} of ${sessionSize} reviewed`);
+    if (!done && cleared > 0) toast(`${cleared} of ${sessionSize} reviewed`);
     onClose();
   };
 
@@ -131,16 +144,37 @@ function ReviewSession({
     // Restart the enter transition on the next card; motion is 160ms and
     // never gates input — rating buttons work mid-transition.
     requestAnimationFrame(() => {
-      setIndex((i) => i + 1);
+      setPos((p) => p + 1);
       setEntering(true);
     });
   };
 
   const rate = (rating: FsrsRating) => {
     if (!card) return;
-    rateCard(card.id, rating);
-    setRatedCount((n) => n + 1);
-    if (rating === 1) setAgainCount((n) => n + 1);
+    const id = card.id;
+    if (rating === 1) {
+      const n = (attemptsRef.current[id] ?? 0) + 1;
+      attemptsRef.current[id] = n;
+      if (n < AGAIN_CAP) {
+        // Requeue spaced a few cards ahead; do NOT schedule yet (terminal-only).
+        setWork((w) => {
+          const next = [...w];
+          next.splice(Math.min(pos + 1 + REQUEUE_SPACING, next.length), 0, id);
+          return next;
+        });
+        setRelearns((m) => m + 1);
+      } else {
+        // Bounded relearn: after the cap, apply the "again" schedule once and
+        // move on ("keep practicing") rather than looping forever.
+        rateCard(id, 1);
+        setCleared((c) => c + 1);
+        setCapped((c) => c + 1);
+      }
+    } else {
+      // Terminal rating: schedule once, card leaves the working queue.
+      rateCard(id, rating);
+      setCleared((c) => c + 1);
+    }
     advance();
   };
 
@@ -160,26 +194,25 @@ function ReviewSession({
   });
 
   if (done) {
-    // "again" cards are rescheduled ~10 min out, so they leave dueRemaining
-    // (a <= now filter) — caught-up must also require none were marked again,
-    // or an all-"again" session would falsely claim completion.
-    const caughtUp = dueRemaining === 0 && againCount === 0;
+    // Caught up only when nothing is due globally AND no card hit the relearn
+    // cap (a capped card is still shaky — reschedules ~10 min out, so it left
+    // dueRemaining but wasn't truly learned).
+    const caughtUp = dueRemaining === 0 && capped === 0;
     const core =
-      ratedCount === sessionSize
-        ? `${ratedCount} reviewed`
-        : `${ratedCount} of ${sessionSize} reviewed`;
+      cleared === sessionSize ? `${cleared} reviewed` : `${cleared} of ${sessionSize} reviewed`;
     return (
       <div className="ed-fc-tray" role="region" aria-label="Review session">
         <div className="ed-fc-done">
           {caughtUp ? (
             <>
               <span className="ed-fc-done-mark">✓</span> caught up · {core}
+              {relearns > 0 ? ` · ${relearns} relearn${relearns === 1 ? "" : "s"}` : ""}
             </>
           ) : (
             <>
               {core}
+              {relearns > 0 ? ` · ${relearns} relearn${relearns === 1 ? "" : "s"}` : ""}
               {dueRemaining > 0 ? ` · ${dueRemaining} still due` : ""}
-              {againCount > 0 ? ` · ${againCount} marked again` : ""}
               {dueRemaining === 0 ? " — /fsrs for more" : ""}
             </>
           )}
@@ -207,7 +240,7 @@ function ReviewSession({
           </span>
         )}
         <span className="ed-fc-progress">
-          {index + 1} / {queue.length}
+          {pos + 1} / {work.length}
         </span>
         <button
           className={`ed-fc-flag ${card.flagged ? "on" : ""}`}

@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline markdown styling in the editor mirror: `>>` blockquotes, `#`/`##`/`###` headings, and `**bold**` spans render with color/weight, without hiding the raw syntax or shifting caret alignment (#21).
 - "Continue" button on the FSRS review-complete banner: starts a fresh session on the next due batch in one click, without closing the tray or retyping `/fsrs`; hidden when nothing is due now (#24).
 - Cards can carry an optional **encoding**: the learner's own mnemonic or connection, written alongside front/back and shown on reveal in the review tray, next to the answer (#19).
+- FSRS review is now a feedback loop (#7): a card rated **again** is re-queued a few cards later in the same session and must be cleared before the session ends (bounded — after 3 "again"s it's scheduled and you move on). Completion is `(10 + m)/10` where `m` = relearns; the intra-session requeue only touches the FSRS scheduler on a card's terminal rating, so `dueAt`/reviewLogs aren't thrashed. An opt-in `loadStarterDeck` action (offered on the empty `/fsrs` prompt) brings back the 8 demo cards.
 
 ### Changed
 
