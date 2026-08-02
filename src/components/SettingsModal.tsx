@@ -68,7 +68,14 @@ function SettingsForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-type Draft = { id: string | null; label: string; url: string; model: string; verifyModel: string };
+type Draft = {
+  id: string | null;
+  label: string;
+  url: string;
+  model: string;
+  verifyModel: string;
+  proxy: boolean;
+};
 
 function AiModelsView({ onClose }: { onClose: () => void }) {
   const {
@@ -91,7 +98,7 @@ function AiModelsView({ onClose }: { onClose: () => void }) {
     window.location.hostname !== "127.0.0.1";
 
   const startAdd = () => {
-    setDraft({ id: null, label: "", url: "", model: "", verifyModel: "" });
+    setDraft({ id: null, label: "", url: "", model: "", verifyModel: "", proxy: false });
     setTestResult(null);
   };
   const startEdit = (cfg: AiModelConfig) => {
@@ -101,6 +108,7 @@ function AiModelsView({ onClose }: { onClose: () => void }) {
       url: cfg.url,
       model: cfg.model,
       verifyModel: cfg.verifyModel ?? "",
+      proxy: cfg.proxy ?? false,
     });
     setTestResult(null);
   };
@@ -122,11 +130,12 @@ function AiModelsView({ onClose }: { onClose: () => void }) {
     const model = draft.model.trim();
     const label = draft.label.trim() || model || url || "AI model";
     const verifyModel = draft.verifyModel.trim() || undefined;
+    const proxy = draft.proxy || undefined;
     if (draft.id) {
-      updateAiModel(draft.id, { label, url, model, verifyModel });
+      updateAiModel(draft.id, { label, url, model, verifyModel, proxy });
     } else {
       const id = newModelId();
-      addAiModel({ id, label, url, model, verifyModel });
+      addAiModel({ id, label, url, model, verifyModel, proxy });
       if (aiModels.length === 0) setActiveAiModel(id);
     }
     setDraft(null);
@@ -146,7 +155,7 @@ function AiModelsView({ onClose }: { onClose: () => void }) {
     setTesting(true);
     setTestResult(null);
     try {
-      const { base, models } = await probeLocalAi(draft.url);
+      const { base, models } = await probeLocalAi(draft.url, draft.proxy);
       const hasModel = models.some((id) => id === draft.model || id.startsWith(draft.model + ":"));
       setTestResult({
         ok: true,
@@ -167,9 +176,11 @@ function AiModelsView({ onClose }: { onClose: () => void }) {
       <div className="ed-modal-body">
         {isHosted && (
           <div className="ed-modal-info">
-            You're on a hosted instance. Your browser will connect directly to each URL below, so it
-            must be reachable from this page. For a local server, start it with CORS allowed for
-            this origin (e.g. for Ollama):
+            You're on a hosted instance. By default your browser connects directly to each URL
+            below, so it must be reachable from this page — either enable{" "}
+            <strong>Route through the app server</strong> on a model (the server forwards to the AI
+            for you, no CORS needed), or start the server with CORS allowed for this origin (e.g.
+            for Ollama):
             <br />
             <code>
               OLLAMA_ORIGINS="
@@ -209,6 +220,7 @@ function AiModelsView({ onClose }: { onClose: () => void }) {
                 <div className="ed-opt-desc">
                   {cfg.url} · {cfg.model || "(no model set)"}
                   {cfg.verifyModel ? ` · verify: ${cfg.verifyModel}` : ""}
+                  {cfg.proxy ? " · via server" : ""}
                 </div>
               </div>
             </label>
@@ -269,6 +281,24 @@ function AiModelsView({ onClose }: { onClose: () => void }) {
                 base URL. With or without <code>/v1</code> both work (e.g.{" "}
                 <code>http://localhost:11434</code> or <code>http://localhost:11434/v1</code>) —
                 it's probed automatically.
+              </span>
+            </label>
+
+            <label className="ed-field-inline">
+              <input
+                type="checkbox"
+                checked={draft.proxy}
+                onChange={(e) => setDraft((d) => d && { ...d, proxy: e.target.checked })}
+              />
+              <span>
+                Route through the app server (Docker passthrough)
+                <span className="ed-field-hint" style={{ display: "block" }}>
+                  Off: your browser connects to the URL above directly. On: the request goes to this
+                  app's server, which forwards it to the same URL from its side — use this when the
+                  AI runs on the Docker network (a sibling service or{" "}
+                  <code>host.docker.internal</code>) or the server blocks browser CORS. Only
+                  local/private targets are allowed.
+                </span>
               </span>
             </label>
 

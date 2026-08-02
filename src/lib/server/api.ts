@@ -27,6 +27,83 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+/**
+ * SSRF guard for the AI proxy: the target host is client-supplied, so only
+ * forward to places a local AI could plausibly live and a browser can't reach
+ * on its own — loopback, Docker (`*.docker.internal`, dot-less compose service
+ * names), and private IPv4 ranges. A public host is refused. This is not a
+ * general web proxy.
+ */
+export function isAllowedProxyTarget(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, ""); // strip IPv6 brackets
+  if (host === "localhost" || host === "::1" || host === "host.docker.internal") return true;
+  if (host.endsWith(".docker.internal")) return true;
+  // Dot-less name = a single-label host (a Docker/compose service like "ollama").
+  if (!host.includes(".") && !host.includes(":")) return true;
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (m) {
+    const [a, b] = [Number(m[1]), Number(m[2])];
+    if ([a, b, Number(m[3]), Number(m[4])].some((n) => n > 255)) return false;
+    if (a === 127 || a === 10) return true; // loopback, private
+    if (a === 192 && b === 168) return true; // private
+    if (a === 172 && b >= 16 && b <= 31) return true; // private
+    // Link-local (169.254/16) is deliberately NOT allowed: it's the cloud
+    // instance-metadata range (169.254.169.254), a classic SSRF target. The
+    // Docker host is reachable by the `host.docker.internal` name above.
+    return false;
+  }
+  return false;
+}
+
+const PROXY_TIMEOUT_MS = 65_000;
+
+/**
+ * Forward one OpenAI-compatible request to a local AI server from inside the app
+ * server, so the request travels over the Docker network / to `host.docker.internal`
+ * and skips browser CORS. Not gated by the sync token (AI is independent of sync)
+ * — guarded by the target allowlist instead.
+ */
+async function handleAiProxy(request: Request): Promise<Response> {
+  const raw = new URL(request.url).searchParams.get("url");
+  if (!raw) return json({ error: "missing target url" }, 400);
+  let target: URL;
+  try {
+    target = new URL(raw);
+  } catch {
+    return json({ error: "invalid target url" }, 400);
+  }
+  if (target.protocol !== "http:" && target.protocol !== "https:") {
+    return json({ error: "unsupported target scheme" }, 400);
+  }
+  if (!isAllowedProxyTarget(target.hostname)) {
+    return json({ error: "target host not allowed (local/private only)" }, 403);
+  }
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), PROXY_TIMEOUT_MS);
+  try {
+    const upstream = await fetch(target, {
+      method: request.method,
+      headers: { "content-type": request.headers.get("content-type") ?? "application/json" },
+      body:
+        request.method === "GET" || request.method === "HEAD" ? undefined : await request.text(),
+      signal: ctrl.signal,
+    });
+    const body = await upstream.text();
+    return new Response(body, {
+      status: upstream.status,
+      headers: {
+        "content-type": upstream.headers.get("content-type") ?? "application/json",
+        "cache-control": "no-store",
+      },
+    });
+  } catch {
+    return json({ error: `AI server unreachable at ${target.origin}` }, 502);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 let booted = false;
 export async function bootOnce(): Promise<void> {
   if (booted) return;
@@ -52,6 +129,10 @@ export async function handleApi(request: Request): Promise<Response | null> {
   if (!url.pathname.startsWith("/api/")) return null;
 
   await bootOnce();
+
+  // AI passthrough is independent of sync — it forwards to a local AI, not the
+  // sync store — so it runs before (and without) the sync-token check.
+  if (url.pathname === "/api/ai-proxy") return handleAiProxy(request);
 
   if (authRateLimited()) return json({ error: "too many failed auth attempts" }, 429);
   const auth = request.headers.get("authorization") ?? "";

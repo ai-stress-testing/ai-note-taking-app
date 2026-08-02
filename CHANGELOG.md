@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline file rename affordance in the sidebar (#15).
 - Inline markdown styling in the editor mirror: `>>` blockquotes, `#`/`##`/`###` headings, and `**bold**` spans render with color/weight, without hiding the raw syntax or shifting caret alignment (#21).
 - "Continue" button on the FSRS review-complete banner: starts a fresh session on the next due batch in one click, without closing the tray or retyping `/fsrs`; hidden when nothing is due now (#24).
+- AI models can be reached through the app's own server instead of a direct browser fetch: a per-model **Route through the app server (Docker passthrough)** toggle in Settings sends the request to a new `/api/ai-proxy` route, which forwards it to the same local URL from inside the app server. This reaches an AI on the Docker network (a sibling service or `host.docker.internal`) that a browser can't resolve, and sidesteps browser CORS on hosted instances. The proxy only forwards to loopback/Docker/private-LAN targets (SSRF guard) and isn't gated by the sync token; the test-connection button honors the toggle. `AiModelConfig` gains an optional `proxy` flag — additive, device-local, no store `version` bump and not synced.
 
 ### Changed
 

@@ -35,6 +35,13 @@ export type AiModelConfig = {
   model: string;
   /** Optional smaller/faster model for math/calc/grading verification. */
   verifyModel?: string;
+  /**
+   * Reach this server through the app's own server (`/api/ai-proxy`) instead of
+   * a direct browser fetch. Lets the request travel over the Docker network
+   * (sibling service or `host.docker.internal`) and sidesteps browser CORS.
+   * Absent/false = direct (the default transport).
+   */
+  proxy?: boolean;
 };
 
 export type SessionEventType = "start" | "break" | "resume" | "end";

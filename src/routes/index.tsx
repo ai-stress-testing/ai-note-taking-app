@@ -292,6 +292,7 @@ function Editor() {
           localAiEnabled,
           localAiUrl: activeModel.url,
           localAiModel: activeModel.model,
+          localAiProxy: activeModel.proxy,
           fileId: activeFileId,
         });
         const parsed = safeJson(text);
@@ -399,6 +400,7 @@ function Editor() {
           localAiEnabled,
           localAiUrl: activeModel.url,
           localAiModel: activeModel.model,
+          localAiProxy: activeModel.proxy,
           fileId: activeFileId,
         });
         const parsed = safeJson(text) as { summary?: string; tags?: string[] } | null;
@@ -454,6 +456,7 @@ function Editor() {
           localAiEnabled,
           localAiUrl: activeModel.url,
           localAiModel: opts.model || activeModel.model,
+          localAiProxy: activeModel.proxy,
           fileId: activeFileId,
         });
         const block = opts.onText(text, source);

@@ -26,6 +26,8 @@ export function queueAi(opts: {
   localAiEnabled: boolean;
   localAiUrl: string;
   localAiModel: string;
+  /** Route through the app server (`/api/ai-proxy`) instead of a direct fetch. */
+  localAiProxy?: boolean;
   /** The file whose content the prompt was built from; gates the privacy check. */
   fileId?: string | null;
 }): Promise<AiResult> {
@@ -46,6 +48,7 @@ export function queueAi(opts: {
         localAiEnabled: opts.localAiEnabled,
         localAiUrl: opts.localAiUrl,
         localAiModel: opts.localAiModel,
+        localAiProxy: opts.localAiProxy,
       });
       updateAiEntry(id, { status: "ok", result: result.text, respondedAt: Date.now() });
       return result;
