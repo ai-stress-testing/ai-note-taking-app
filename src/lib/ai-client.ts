@@ -18,11 +18,21 @@ export function candidateBases(raw: string): string[] {
   return [`${base}/v1`, base];
 }
 
-async function fetchModels(base: string, timeoutMs: number): Promise<Response> {
+/**
+ * The URL the browser actually fetches. Direct: the AI endpoint itself. Proxy:
+ * the app's own `/api/ai-proxy`, which forwards to the endpoint server-side so
+ * the request can travel the Docker network / reach `host.docker.internal` and
+ * skip browser CORS. The absolute target rides along as a query param.
+ */
+function endpointUrl(target: string, proxy: boolean): string {
+  return proxy ? `/api/ai-proxy?url=${encodeURIComponent(target)}` : target;
+}
+
+async function fetchModels(base: string, timeoutMs: number, proxy: boolean): Promise<Response> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    return await fetch(`${base}/models`, { signal: ctrl.signal });
+    return await fetch(endpointUrl(`${base}/models`, proxy), { signal: ctrl.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -43,13 +53,14 @@ function modelIdsFrom(data: unknown): string[] {
  */
 async function probeBases(
   rawUrl: string,
+  proxy: boolean,
 ): Promise<{ base: string; models: string[]; resolved: boolean }> {
   const candidates = candidateBases(rawUrl);
   let anyResponded = false;
   for (const base of candidates) {
     let res: Response;
     try {
-      res = await fetchModels(base, 2500);
+      res = await fetchModels(base, 2500, proxy);
     } catch {
       continue;
     }
@@ -68,11 +79,18 @@ async function probeBases(
   throw new Error(`Local AI server unreachable at ${rawUrl}. Start it and try again.`);
 }
 
-async function resolveBase(rawUrl: string): Promise<string> {
-  const cached = resolvedBaseCache.get(rawUrl);
+// Transport-prefixed so a direct resolution is never reused for a proxy call
+// (their reachability differs).
+function cacheKey(rawUrl: string, proxy: boolean): string {
+  return `${proxy ? "p" : "d"}:${rawUrl}`;
+}
+
+async function resolveBase(rawUrl: string, proxy: boolean): Promise<string> {
+  const key = cacheKey(rawUrl, proxy);
+  const cached = resolvedBaseCache.get(key);
   if (cached) return cached;
-  const { base, resolved } = await probeBases(rawUrl);
-  if (resolved) resolvedBaseCache.set(rawUrl, base);
+  const { base, resolved } = await probeBases(rawUrl, proxy);
+  if (resolved) resolvedBaseCache.set(key, base);
   return base;
 }
 
@@ -81,9 +99,12 @@ async function resolveBase(rawUrl: string): Promise<string> {
  * test button so it uses the exact same resolution as the real pipeline.
  * Throws when the server is unreachable.
  */
-export async function probeLocalAi(rawUrl: string): Promise<{ base: string; models: string[] }> {
-  const { base, models, resolved } = await probeBases(rawUrl);
-  if (resolved) resolvedBaseCache.set(rawUrl, base);
+export async function probeLocalAi(
+  rawUrl: string,
+  proxy = false,
+): Promise<{ base: string; models: string[] }> {
+  const { base, models, resolved } = await probeBases(rawUrl, proxy);
+  if (resolved) resolvedBaseCache.set(cacheKey(rawUrl, proxy), base);
   return { base, models };
 }
 
@@ -93,8 +114,9 @@ async function chatCompletion(
   system: string,
   prompt: string,
   signal: AbortSignal,
+  proxy: boolean,
 ): Promise<string> {
-  const res = await fetch(`${baseUrl}/chat/completions`, {
+  const res = await fetch(endpointUrl(`${baseUrl}/chat/completions`, proxy), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -145,11 +167,14 @@ export async function runAi(opts: {
   localAiEnabled: boolean;
   localAiUrl: string;
   localAiModel: string;
+  /** Route through the app server (`/api/ai-proxy`) instead of a direct fetch. */
+  localAiProxy?: boolean;
 }): Promise<AiResult> {
   if (!opts.localAiEnabled) {
     throw new Error("Local AI is disabled. Enable it in settings — cloud AI is not available.");
   }
-  const base = await resolveBase(opts.localAiUrl);
+  const proxy = opts.localAiProxy ?? false;
+  const base = await resolveBase(opts.localAiUrl, proxy);
 
   const genCtrl = new AbortController();
   const genTimer = setTimeout(() => genCtrl.abort(), 60000);
@@ -160,12 +185,13 @@ export async function runAi(opts: {
       opts.system,
       opts.prompt,
       genCtrl.signal,
+      proxy,
     );
     return { text, source: "local" };
   } catch (e) {
     // A cached base may have gone stale (server restarted at the other form);
     // drop it so the next call re-probes.
-    resolvedBaseCache.delete(opts.localAiUrl);
+    resolvedBaseCache.delete(cacheKey(opts.localAiUrl, proxy));
     throw e;
   } finally {
     clearTimeout(genTimer);
